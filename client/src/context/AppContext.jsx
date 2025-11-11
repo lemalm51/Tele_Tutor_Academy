@@ -1,38 +1,36 @@
 import { createContext, useEffect, useState } from "react";
 import { dummyCourses } from "../assets/assets";
-// If you decide to re-enable Clerk:
-// import { useAuth, useUser } from '@clerk/clerk-react'; 
+import { useNavigate } from "react-router-dom"; 
 
 export const AppContext = createContext();
 
 export const AppContextProvider = (props) => {
-    
-    // State for all courses
-    const [allCourses, setAllCourses] = useState([]);
 
-    // Function to calculate the average rating for a course
+    const navigate = useNavigate();
+
+    const [allCourses, setAllCourses] = useState([]);
+    const [isEducator, setIsEducator] = useState(false)
+
+    const fetchAllCourses = async () => {
+        setAllCourses(dummyCourses);
+    };
+
     const calculateRating = (course) => {
-        // Check if courseRatings exists and is an array with items
-        if (!course.courseRatings || course.courseRatings.length === 0) {
-            return 0; // Return 0 if no ratings are available
+        // Defensive check for the course object and ratings array
+        if (!course || !course.courseRatings || course.courseRatings.length === 0) {
+            return 0; 
         }
 
-        // Sum up all the rating values
+        // 1. Sum up all the rating values (MUST come first)
         const totalRating = course.courseRatings.reduce((sum, rating) => sum + rating.ratingValue, 0);
 
-        // Calculate the average
+        // 2. Calculate the average (Now totalRating is defined)
         const averageRating = totalRating / course.courseRatings.length;
-        
+
         return averageRating;
     };
 
-    // Correct function syntax for fetching courses
-    const fetchAllCourses = async () => {
-        // Simulates fetching data and populating state
-        setAllCourses(dummyCourses);
-    };
     
-    // Effect hook to run the fetch function once on mount
     useEffect(() => {
         fetchAllCourses();
     }, []);
@@ -40,8 +38,10 @@ export const AppContextProvider = (props) => {
     const contextValue = {
         allCourses,
         setAllCourses,
-        // currency has been removed
         calculateRating, 
+        isEducator,
+        navigate, // ensure navigate is included
+        setIsEducator,
     };
 
     return (

@@ -1,5 +1,5 @@
 import logo from './logo.png'
-import logo_dark from './logo_dark.svg'
+import scemalogo from './scemalogo.png'
 import search_icon from './search_icon.svg'
 import cross_icon from './cross_icon.svg'
 import upload_area from './upload_area.svg'
@@ -17,7 +17,7 @@ import star from './rating_star.svg'
 import star_blank from './star_dull_icon.svg'
 import profile_img_1 from './profile_img_1.png'
 import profile_img_2 from './profile_img_2.png'
-import profile_img_3 from './profile_img_3.png'
+import profile_img_3 from './liban.jpg'
 import arrow_icon from './arrow_icon.svg'
 import down_arrow_icon from './down_arrow_icon.svg'
 import time_left_clock_icon from './time_left_clock_icon.svg'
@@ -43,12 +43,12 @@ import profile_img2 from './profile_img2.png'
 import profile_img3 from './profile_img3.png'
 import lesson_icon from './lesson_icon.svg'
 
-import abhishek from './abhishek.JPG'
-import shreyansh from './shreyansh.JPG'
+import abhishek from './carabat2.jpg'
+import shreyansh from './josh.jpg'
 export const assets = {
     abhishek,
     shreyansh,
-    logo,
+   scemalogo,
     search_icon,
     sketch,
     telelogo,
@@ -69,7 +69,7 @@ export const assets = {
     dropdown_icon,
     cross_icon,
     upload_area,
-    logo_dark,
+    logo,
     down_arrow_icon,
     time_left_clock_icon,
     time_clock_icon,
@@ -109,25 +109,25 @@ export const dummyEducatorData = {
 
 export const dummyTestimonial = [
     {
-        name: 'Sophia Carter',
-        role: 'Student @ AKTU',
+        name: 'Lemma Kechinu',
+        role: 'Student @ AU',
         image: assets.abhishek,
         rating: 5,
-        feedback: 'Edemy LMS has revolutionized my teaching experience. The platform is intuitive, making course creation and student engagement seamless.',
+        feedback: 'The STEM project experience was transformative. The process was intuitive and seamless, making complex problem-solving, design iteration, and data analysis incredibly smooth and efficient.',
     },
     {
-        name: 'Shreyansh Dubey',
-        role: 'Student @ KNIT',
+        name: 'Joshoa Yohanese',
+        role: 'Student @ AASTU',
         image: assets.shreyansh,
         rating: 4.8,
-        feedback: 'Edemy LMS provides an exceptional learning environment. The structured courses, real-time tracking, and user-friendly interface are top-notch.',
+        feedback: 'The STEM project maximized my creativity. The platform made collaborative design and iterative testing intuitive, resulting in a seamless and high-quality final deliverable.',
     },
     {
-        name: 'Olivia Martinez',
-        role: 'Software Engineer @ Microsoft',
+        name: 'Liban Leta',
+        role: 'Student @ AU',
         image: assets.profile_img_3,
         rating: 4.7,
-        feedback: 'Edemy LMS is a fantastic platform for upskilling. Its diverse course library and smooth UI make learning highly effective and engaging.',
+        feedback: 'This STEM project revolutionized my approach to learning. The intuitive structure made managing research, experimentation, and critical evaluation incredibly efficient and seamless.',
     },
 ];
 
