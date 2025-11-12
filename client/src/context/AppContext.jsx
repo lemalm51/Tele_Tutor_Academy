@@ -1,55 +1,108 @@
 import { createContext, useEffect, useState } from "react";
-import { dummyCourses } from "../assets/assets";
 import { useNavigate } from "react-router-dom"; 
 import humanizeDuration from "humanize-duration";
+// Assuming you have a dummyCourses array imported from somewhere
+// import { dummyCourses } from "../assets/assets"; 
 
 export const AppContext = createContext();
+
+// Mock data structure (replace this with your actual dummyCourses import)
+const dummyCourses = [
+    { 
+        _id: "course-1", 
+        courseTitle: "The Complete JavaScript Guide", 
+        courseThumbnail: "https://via.placeholder.com/150/0000FF/FFFFFF?text=JS", 
+        courseRatings: [{ ratingValue: 5 }, { ratingValue: 4 }],
+        courseContent: [
+            { chapterTitle: "Intro", chapterContent: [{ lectureDuration: 10 }, { lectureDuration: 5 }] },
+            { chapterTitle: "Basics", chapterContent: [{ lectureDuration: 20 }, { lectureDuration: 15 }] }
+        ]
+    },
+    { 
+        _id: "course-2", 
+        courseTitle: "React and Redux Masterclass", 
+        courseThumbnail: "https://via.placeholder.com/150/00FF00/FFFFFF?text=React", 
+        courseRatings: [{ ratingValue: 5 }, { ratingValue: 5 }, { ratingValue: 5 }],
+        courseContent: [
+            { chapterTitle: "Setup", chapterContent: [{ lectureDuration: 5 }, { lectureDuration: 5 }] },
+            { chapterTitle: "Hooks", chapterContent: [{ lectureDuration: 30 }, { lectureDuration: 10 }] }
+        ]
+    },
+    { 
+        _id: "course-3", 
+        courseTitle: "Node.js and Express API Development", 
+        courseThumbnail: "https://via.placeholder.com/150/FF0000/FFFFFF?text=Node", 
+        courseRatings: [{ ratingValue: 4 }, { ratingValue: 3 }],
+        courseContent: [
+            { chapterTitle: "Servers", chapterContent: [{ lectureDuration: 20 }, { lectureDuration: 20 }] },
+            { chapterTitle: "Database", chapterContent: [{ lectureDuration: 40 }] }
+        ]
+    },
+];
 
 export const AppContextProvider = (props) => {
 
     const navigate = useNavigate();
 
+    // Core State Management
     const [allCourses, setAllCourses] = useState([]);
-    const [isEducator, setIsEducator] = useState(false)
+    const [isEducator, setIsEducator] = useState(false);
+    
+    // States required by MyEnrollMents
+    const [userData, setUserData] = useState(null); 
+    const [enrolledCourses, setEnrolledCourses] = useState([]); 
+    const backendUrl = "http://localhost:4000"; 
+
+    // Placeholder Functions for Auth and Fetching
+    
+    const getToken = async () => {
+        // Mock token
+        return "dummy-auth-token"; 
+    };
+
+    const fetchUserEnrolledCourses = async () => {
+        console.log("fetchUserEnrolledCourses: Fetching mock enrollments.");
+        
+        // ** SET THE NUMBER OF COURSES TO MOCK-ENROLL HERE **
+        // Example: .slice(0, 3) will enroll the first 3 courses
+        const mockEnrollments = dummyCourses.slice(0, 3).map(course => ({
+            ...course,
+            // Add a mock progress structure
+            progressData: { lectureCompleted: [{ id: 'l1' }] } 
+        }));
+        
+        setEnrolledCourses(mockEnrollments);
+    };
 
     const fetchAllCourses = async () => {
         setAllCourses(dummyCourses);
     };
 
+    // Utility Functions
+
     const calculateRating = (course) => {
-        // Defensive check for the course object and ratings array
         if (!course || !course.courseRatings || course.courseRatings.length === 0) {
             return 0; 
         }
-
-        // 1. Sum up all the rating values (MUST come first)
         const totalRating = course.courseRatings.reduce((sum, rating) => sum + rating.ratingValue, 0);
-
-        // 2. Calculate the average (Now totalRating is defined)
         const averageRating = totalRating / course.courseRatings.length;
-
-        return averageRating;
+        return parseFloat(averageRating.toFixed(1)); 
     };
 
-    // function to calculate course chapter time
     const calculateChapterTime = (chapter) => {
         let time = 0;
-        chapter.chapterContent.map((lecture) => time += lecture.lectureDuration)
-        return humanizeDuration(time * 60 * 1000, {units: ["h", "m"]})
+        chapter.chapterContent.forEach((lecture) => time += lecture.lectureDuration);
+        return humanizeDuration(time * 60 * 1000, {units: ["h", "m"]});
     }
 
-
-    // Function to calculate course Duratuion
     const calculateCourseDuration = (course)=>{
         let time = 0 ;
-        course.courseContent.map((chapter)=> chapter.chapterContent.map(
+        course.courseContent.forEach((chapter)=> chapter.chapterContent.forEach(
             (lecture)=> time += lecture.lectureDuration 
         ))
-
         return humanizeDuration(time * 60 * 1000, {units: ["h", "m"]}) 
     }
 
-    // Function to calculate to no. of lectures in the course
     const calculateNoOfLectures = (course) => {
         let totalLectures = 0;
         course.courseContent.forEach(chapter => {
@@ -60,17 +113,28 @@ export const AppContextProvider = (props) => {
         return totalLectures;
     }
     
+    // Initial Data Load & Mock Login
     useEffect(() => {
         fetchAllCourses();
+        // Mocking user login to trigger enrollment fetch in MyEnrollMents
+        setUserData({ name: "Mock User" }); 
     }, []);
 
     const contextValue = {
-        allCourses,
-        setAllCourses,
+        // Courses
+        allCourses, setAllCourses,
+        // Authentication & User
+        userData, setUserData,
+        isEducator, setIsEducator,
+        getToken, 
+        backendUrl, 
+        // Navigation
+        navigate, 
+        // Enrollment
+        enrolledCourses, setEnrolledCourses,
+        fetchUserEnrolledCourses,
+        // Utility Functions
         calculateRating, 
-        isEducator,
-        navigate, // ensure navigate is included
-        setIsEducator,
         calculateChapterTime,
         calculateCourseDuration,
         calculateNoOfLectures,
