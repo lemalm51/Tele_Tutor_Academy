@@ -161,7 +161,7 @@ export const dummyDashboardData = {
             }
         },
         {
-            "courseTitle": "Data Science with Python",
+            "courseTitle": "Mathematical Algebra",
             "student": {
                 "_id": "user_2qQlvXyr02B4Bq6hT0Gvaa5fT9V",
                 "name": "Great Stack",
@@ -295,7 +295,7 @@ export const dummyCourses = [
     },
     {
         "_id": "675ac1512100b91a6d9b8b24",
-        "courseTitle": "Advanced Techonolgy",
+        "courseTitle": "Advanced Technology",
         "courseDescription": "<h2>Deep Dive into Python Programming</h2><p>This course is designed for those who have a basic understanding of Python and want to take their skills to the next level. You will explore advanced topics such as decorators, generators, and context managers.</p><p>By the end of this course, you will be able to write efficient and clean Python code, and understand how to leverage Python's powerful features for real-world applications.</p><ul><li>Master advanced data structures</li><li>Implement object-oriented programming concepts</li><li>Work with libraries and frameworks</li></ul>",
         // "coursePrice": 79.99,
         "isPublished": true,
@@ -499,7 +499,7 @@ export const dummyCourses = [
     },
     {
         "_id": "605c72efb3f1c2b1f8e4e1ac",
-        "courseTitle": "Cloud Computing Essentials",
+        "courseTitle": "Engineering essaintial",
         "courseDescription": "<h2>Master Cloud Fundamentals</h2><p>Learn the foundations of cloud computing and explore popular cloud platforms like AWS, Azure, and Google Cloud. This course is ideal for IT professionals and developers looking to transition to cloud-based solutions.</p><p>By the end of this course, you will understand cloud services, deployment models, and best practices for using cloud resources efficiently.</p><ul><li>Understand cloud architecture</li><li>Learn to work with AWS, Azure, and GCP</li><li>Explore serverless computing and storage solutions</li></ul>",
         // "coursePrice": 69.99,
         "isPublished": true,
@@ -560,11 +560,11 @@ export const dummyCourses = [
         "createdAt": "2024-12-17T08:16:53.622Z",
         "updatedAt": "2024-12-31T05:32:55.357Z",
         "__v": 1,
-        "courseThumbnail": "https://img.youtube.com/vi/0yboGn8errU/maxresdefault.jpg"
+        "courseThumbnail": "https://cesblog.sdsu.edu/wp-content/uploads/sites/8/2023/05/Top-10-Job-Sectors-for-Civil-Engineering-Graduates-Featured-image.png"
     },
     {
         "_id": "605c72efb3f1c2b1f8e4e1ad",
-        "courseTitle": "Data Science with Python",
+        "courseTitle": "Mathematical Algebra",
         "courseDescription": "<h2>Start Your Data Science Journey</h2><p>Data Science is one of the most in-demand fields in the world. This course teaches you the essentials of data analysis, visualization, and machine learning using Python. Learn libraries like Pandas, NumPy, Matplotlib, and Scikit-learn.</p><p>By the end of this course, you will be equipped to work on real-world data projects and gain insights from data.</p><ul><li>Data cleaning and preprocessing</li><li>Exploratory Data Analysis (EDA)</li><li>Build predictive models</li></ul>",
         // "coursePrice": 89.99,
         "isPublished": true,
@@ -633,7 +633,7 @@ export const dummyCourses = [
         "createdAt": "2024-12-27T10:00:00.000Z",
         "updatedAt": "2024-12-31T09:57:48.992Z",
         "__v": 3,
-        "courseThumbnail": "https://img.youtube.com/vi/E4znbZgUWzA/maxresdefault.jpg"
+        "courseThumbnail": "https://media.istockphoto.com/id/1439286764/vector/mathematics-hand-lettering-with-mathematical-doodle.jpg?s=612x612&w=0&k=20&c=595UduFrDWjs97lTYglCyLDOy8UN5r3ZKJA5kQdejvg="
     },
     {
         "_id": "605c72efb3f1c2b1f8e4e1aa",
@@ -698,7 +698,7 @@ export const dummyCourses = [
         "createdAt": "2024-12-17T08:16:53.622Z",
         "updatedAt": "2025-01-02T06:53:59.753Z",
         "__v": 1,
-        "courseThumbnail": "https://img.youtube.com/vi/631lFJdQvoo/maxresdefault.jpg"
+        "courseThumbnail": "https://guptadeepak.com/content/images/size/w2000/2024/07/The-Future-of-AI-and-Its-Impact-on-Humanity.webp"
     },
     {
         "_id": "605c72efb3f1c2b1f8e4e1ab",
@@ -763,6 +763,6 @@ export const dummyCourses = [
         "createdAt": "2024-12-17T08:16:53.622Z",
         "updatedAt": "2025-01-02T06:56:13.208Z",
         "__v": 1,
-        "courseThumbnail": "https://img.youtube.com/vi/WbV3zRgpw_E/maxresdefault.jpg"
+        "courseThumbnail": "https://www.shutterstock.com/image-photo/glowing-digital-lock-surrounded-by-600nw-2517566697.jpg"
     }
 ]
