@@ -3,8 +3,7 @@ import React from 'react'
 const MyCourses = () => {
   return (
     <div>
-      <h1>mycourses</h1>
-      
+        <h1>Mycoursea</h1>
     </div>
   )
 }

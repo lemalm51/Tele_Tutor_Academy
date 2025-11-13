@@ -3,19 +3,19 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 const Loading = () => {
 
-  // const {path} = useParams()
+  const {path} = useParams()
 
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
 
-  // useEffect(() => {
-  //   if (path) {
-  //     const timer = setTimeout(() => {
-  //       navigate(`/${path}`);
-  //     }, 5000);
+  useEffect(() => {
+    if (path) {
+      const timer = setTimeout(() => {
+        navigate(`/${path}`);
+      }, 5000);
 
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, []);
+      return () => clearTimeout(timer);
+    }
+  }, []);
   // }, [path, navigate]);
 
   return (

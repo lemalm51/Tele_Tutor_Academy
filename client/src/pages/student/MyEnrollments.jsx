@@ -20,16 +20,7 @@ const MyEnrollMents = () => {
 		calculateNoOfLectures,
 	} = useContext(AppContext);
 
-	const [progressArray, setProgressArray] = useState([
-    {lectureCompleted:2,totalLectures:4},
-      {lectureCompleted:4,totalLectures:4},
-      {lectureCompleted:2,totalLectures:4},
-      {lectureCompleted:4,totalLectures:4},
-      {lectureCompleted:0,totalLectures:4},
-      {lectureCompleted:5,totalLectures:7},
-      {lectureCompleted:4,totalLectures:4},
-      {lectureCompleted:1,totalLectures:4}
-  ]);
+	const [progressArray, setProgressArray] = useState([]);
 
 	const getCourseProgress = async () => {
 		try {

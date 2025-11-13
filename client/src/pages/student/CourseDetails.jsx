@@ -30,8 +30,8 @@ const CourseDetails = () => {
 	} = useContext(AppContext);
 
 	const fetcheCourseData = async () => {
-		const findCourse = allCourses.find((course) => course._id === id);
-		setCourseData(findCourse);
+		// const findCourse = allCourses.find((course) => course._id === id);
+		// setCourseData(findCourse);
 
 		try {
 			const { data } = await axios.get(backendUrl + "/api/course/" + id);
@@ -134,7 +134,6 @@ const CourseDetails = () => {
 						Course by{" "}
 						<span className="text-blue-600 underline">
 							{courseData.educator.name}
-							{/* Lemma Kechinu */}
 						</span>
 					</p>
 
