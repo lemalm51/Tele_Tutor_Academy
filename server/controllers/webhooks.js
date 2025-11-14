@@ -56,11 +56,11 @@
 // }
 
 import { Webhook } from "svix";
-import User from "./models/User.js";
-import Stripe from "stripe";
-import { request, response } from "express";
-import { Purchase } from "../models/Purchase.js";
-import Course from "../models/Course.js";
+import User from "../models/User.js";
+// import Stripe from "stripe";
+// import { request, response } from "express";
+// import { Purchase } from "../models/Purchase.js";
+// import Course from "../models/Course.js";
 
 export const clerkWebhooks = async (req, res) => {
     try {
@@ -111,7 +111,7 @@ export const clerkWebhooks = async (req, res) => {
 };
 
 
-const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
+// const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 
 // export const stripeWebhooks = async (request,response) => {
