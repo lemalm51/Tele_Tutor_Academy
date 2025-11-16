@@ -28,7 +28,7 @@ app.use(clerkMiddleware())
 
 
 // Routes
-app.get('/', (req,res)=>{res.send("STEMA API is working fine!")})
+app.get('/', (req,res)=>{res.send(" API is working fine!")})
 
 app.post('/clerk', express.json(), clerkWebhooks)
 app.use('/api/educator', express.json(), educatorRouter);
