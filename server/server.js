@@ -24,7 +24,7 @@ app.use(cors());
 
 
 // Routes
-app.get('/', (req,res)=>{res.send(" I DO NOT GIVE UP API is working fine!")})
+app.get('/', (req,res)=>{res.send(" I DO NOT GIVE UP API is working fine! COMING NOW")})
 
 app.post('/clerk', express.json(), clerkWebhooks)
 
