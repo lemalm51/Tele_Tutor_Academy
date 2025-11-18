@@ -12,6 +12,7 @@ export const AppContextProvider = (props)=>{
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
     const currency = import.meta.env.VITE_CURRENCY;
+
     const navigate = useNavigate();
 
     const {getToken} = useAuth();
@@ -105,7 +106,7 @@ export const AppContextProvider = (props)=>{
     // Fetch user enrolled courses
 
     const fetchUserEnrolledCourses = async()=>{
-        setEnrolledCourses(dummyCourses)
+        // setEnrolledCourses(dummyCourses)
        try {
         const token = await getToken();
 
@@ -126,26 +127,7 @@ export const AppContextProvider = (props)=>{
     }
 
 
-    // const fetchUserEnrolledCourses = async () => {
-    //     try {
-    //         const token = await getToken();
-    //         const response = await axios.get(backendUrl + "/api/user/enrolled-courses", {
-    //             headers: { Authorization: `Bearer ${token}` }
-    //         });
-    
-    //         // console.log("Response:", response); // Debugging: Log full response
-    
-    //         if (response.data && response.data.enrolledCourses) {
-    //             setEnrolledCourses(response.data.enrolledCourses.reverse());
-    //         } else {
-    //             toast.error(response.data?.message || "No enrolled courses found.");
-    //         }
-    //     } catch (error) {
-    //         console.error("Error fetching courses:", error);
-    //         toast.error(error.response?.data?.message || error.message);
-    //     }
-    // };
-    
+   
     useEffect(()=>{
         fetchAllCourses()
     },[])
@@ -155,15 +137,15 @@ export const AppContextProvider = (props)=>{
     },[])
 
 
-    const logToken = async ()=>{
-        console.log(await getToken());
+    // const logToken = async ()=>{
+    //     console.log(await getToken());
         
-    }
+    // }
 
     useEffect(()=>{
         if(user){
             fetchUserData()
-            logToken()
+            // logToken()
             fetchUserEnrolledCourses()
         }
     },[user])

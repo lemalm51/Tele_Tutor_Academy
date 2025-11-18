@@ -13,7 +13,7 @@ const StudentsEnrolled = () => {
   const [enrolledStudents, setEnrolledStudents] = useState(null)
 
   const fetchEnrolledStudents = async () =>{
-    setEnrolledStudents(dummyStudentEnrolled);
+    // setEnrolledStudents(dummyStudentEnrolled);
     try {
       const token = await getToken();
       const {data} = await axios.get(backendUrl + '/api/educator/enrolled-students', { headers: { Authorization: `Bearer ${token}` } })
