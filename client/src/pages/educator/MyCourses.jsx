@@ -7,14 +7,14 @@ import Logger from '../../components/Logger'
 
 const MyCourses = () => {
 
-  const {currency, backendUrl, isEducator, getToken} = useContext(AppContext)
+  const {currency, backendUrl, isEducator, getToken,allCourses} = useContext(AppContext)
   const [courses, setCourses] = useState(null)
 
 
 
 
   const fetchEducatorCourses = async()=>{
-    // setCourses(allCourses)
+    setCourses(allCourses)
     try {
       const token = await getToken();
       const {data} = await axios.get(backendUrl + '/api/educator/courses', { headers: { Authorization: `Bearer ${token}` } })

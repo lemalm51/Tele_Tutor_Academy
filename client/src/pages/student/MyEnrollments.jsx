@@ -17,6 +17,7 @@ const MyEnrollMents = () => {
 		fetchUserEnrolledCourses,
 		backendUrl,
 		getToken,
+		data,
 		calculateNoOfLectures,
 	} = useContext(AppContext);
 
