@@ -32,7 +32,7 @@ app.use(cors());
 app.use(clerkMiddleware()); 
 
 // --- ROUTES ---
-app.get('/', (req,res)=>{res.send("STEMA API is working fine!")})
+app.get('/', (req,res)=>{res.send("STEMA API is working fine NOW!")})
 
 // Routers no longer need the express.json() middleware inline
 app.use('/api/educator', educatorRouter);
