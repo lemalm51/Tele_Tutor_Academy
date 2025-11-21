@@ -12,32 +12,25 @@ import userRouter from './routes/userRoutes.js';
 // initialize express 
 const app = express();
 
+
 // connect to db
 await connectDB();
 await connectCloudinay();
 
-// --- CRITICAL MIDDLEWARE ---
 
-// 1. Webhook Isolation: Clerk webhooks must run BEFORE the main JSON parser
-// Note: Webhooks often require the raw body or a specific parser.
-app.post('/clerk', express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }), clerkWebhooks);
-// app.post('/stripe', express.raw({type: 'application/json'}), stripeWebhooks); // Stripe is fine with express.raw
-
-// 2. Global JSON Body Parsing: THIS IS THE FIX.
-// All other routes can now read req.body
-app.use(express.json());
-
-// 3. CORS and Clerk Middleware
+// middleware
 app.use(cors());
-app.use(clerkMiddleware()); 
+app.use(clerkMiddleware())
 
-// --- ROUTES ---
-app.get('/', (req,res)=>{res.send("STEMA API is working fine NOW!")})
 
-// Routers no longer need the express.json() middleware inline
-app.use('/api/educator', educatorRouter);
-app.use('/api/course', courseRouter);
-app.use('/api/user', userRouter);
+// Routes
+app.get('/', (req,res)=>{res.send("Stema API is working fine!")})
+app.post('/clerk', express.json(), clerkWebhooks)
+app.use('/api/educator', express.json(), educatorRouter);
+app.use('/api/course', express.json(), courseRouter);
+app.use('/api/user', express.json(), userRouter);
+app.post('/stripe', express.raw({type: 'application/json'}), stripeWebhooks);
+
 
 
 // port
@@ -45,4 +38,5 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, ()=> {
     console.log(`Server is running on ${PORT}`);
+    
 })
