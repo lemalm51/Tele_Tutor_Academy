@@ -9,7 +9,7 @@ import Course from "../models/Course.js";
 
 export const clerkWebhooks = async (req, res) => {
     try {
-        const whook = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
+        // const whook = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
         const payload = JSON.stringify(req.body); // Use req.rawBody if available
 
         await whook.verify(payload, {
