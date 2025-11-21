@@ -15,7 +15,7 @@ const app = express();
 
 // connect to db
 await connectDB();
-await connectCloudinay();
+// await connectCloudinay();
 
 
 // middleware
@@ -29,7 +29,7 @@ app.post('/clerk', express.json(), clerkWebhooks)
 app.use('/api/educator', express.json(), educatorRouter);
 app.use('/api/course', express.json(), courseRouter);
 app.use('/api/user', express.json(), userRouter);
-app.post('/stripe', express.raw({type: 'application/json'}), stripeWebhooks);
+// app.post('/stripe', express.raw({type: 'application/json'}), stripeWebhooks);
 
 
 
