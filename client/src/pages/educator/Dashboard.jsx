@@ -13,7 +13,7 @@ const Dashboard = () => {
 	const [dashboardData, setDashboardData] = useState(null);
 
 	const fetchDashboardData = async () => {
-		// setDashboardData(dummyDashboardData);
+		setDashboardData(dummyDashboardData);
 		try {
 			const token = await getToken();
 
