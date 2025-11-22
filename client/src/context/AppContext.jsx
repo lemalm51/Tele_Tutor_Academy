@@ -10,7 +10,7 @@ export const AppContext = createContext()
 
 export const AppContextProvider = (props)=>{
 
-    const backendUrl = import.meta.env.VITE_BACKEND_URL;
+   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
     const currency = import.meta.env.VITE_CURRENCY;
     const navigate = useNavigate();
 

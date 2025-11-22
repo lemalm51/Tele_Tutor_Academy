@@ -13,6 +13,7 @@ educatorRouter.post('/add-course', upload.single('image'), protectEducator, addC
 educatorRouter.get('/courses', protectEducator, getEducatorCourses);
 educatorRouter.get('/dashboard', protectEducator, educatorDashboardData);
 educatorRouter.get('/enrolled-students', protectEducator, getEnrolledStudentsData);
-
+// Add this with your other routes
+// educatorRouter.delete('/course/:courseId', devAuth, deleteCourse);
 
 export default educatorRouter;

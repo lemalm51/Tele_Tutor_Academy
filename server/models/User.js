@@ -1,15 +1,16 @@
+// server/models/User.js
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
     {
-        clerkId: { type: String, required: true, unique: true }, // Change _id to clerkId
+        _id: { type: String, required: true }, // This should be clerkId
         name: { type: String, required: true },
         email: { type: String, required: true },
         imageUrl: { type: String, required: true },
         role: { 
             type: String, 
             enum: ['student', 'educator'], 
-            default: 'student' // Add this field
+            default: 'student' 
         },
         enrolledCourses: [
             {
