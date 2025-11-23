@@ -1,24 +1,16 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AppContext } from "../../context/AppContext";
-import { assets, dummyDashboardData } from "../../assets/assets";
+import { assets } from "../../assets/assets";
 import Loading from "../../component/student/Loading";
 import { toast } from "react-toastify";
 import axios from "axios";
 import Logger from "../../component/Logger";
 
 const Dashboard = () => {
-  const { currency, backendUrl, getToken, isEducator, userData } = useContext(AppContext);
+  const { backendUrl, getToken, isEducator, userData } = useContext(AppContext);
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Enhanced debug logging
-  console.log("=== DASHBOARD DEBUG ===");
-  console.log("isEducator:", isEducator);
-  console.log("userData:", userData);
-  console.log("userRole:", userData?.role);
-  console.log("backendUrl:", backendUrl);
-  console.log("current dashboardData:", dashboardData);
 
   const fetchDashboardData = async () => {
     console.log("🔄 Starting to fetch dashboard data...");
@@ -27,52 +19,31 @@ const Dashboard = () => {
     
     try {
       const token = await getToken();
-      console.log("🔑 Token available:", !!token);
-      console.log("🌐 Calling API:", backendUrl + '/api/educator/dashboard');
-
       const { data } = await axios.get(backendUrl + '/api/educator/dashboard', { 
         headers: { Authorization: `Bearer ${token}` } 
       });
 
       console.log("📊 Dashboard API response:", data);
-      console.log("✅ Response success:", data.success);
-      console.log("📈 Dashboard data received:", data.dashboardData);
 
       if (data.success) {
-        console.log("🎯 Setting dashboard data");
         setDashboardData(data.dashboardData);
       } else {
-        console.log("❌ API returned error:", data.message);
         setError(data.message);
         toast.error(data.message);
-        // Fallback to dummy data for testing
-        console.log("🔄 Falling back to dummy data");
-        setDashboardData(dummyDashboardData);
       }
     } catch (error) {
       console.error("💥 Dashboard fetch error:", error);
-      console.error("📡 Error response:", error.response);
-      const errorMessage = error.response?.data?.message || error.message;
-      setError(errorMessage);
-      toast.error(errorMessage);
-      // Fallback to dummy data for testing
-      console.log("🔄 Falling back to dummy data due to error");
-      setDashboardData(dummyDashboardData);
+      setError(error.message);
+      toast.error(error.message);
     } finally {
-      console.log("🏁 Fetch completed, setting loading to false");
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    console.log("🎬 Dashboard useEffect triggered");
-    console.log("👨‍🏫 isEducator value:", isEducator);
-    
     if (isEducator) {
-      console.log("✅ User is educator, fetching data...");
       fetchDashboardData();
     } else {
-      console.log("❌ User is NOT educator, skipping fetch");
       setLoading(false);
       setError("Educator access required");
     }
@@ -80,22 +51,18 @@ const Dashboard = () => {
 
   // Safe image URL function
   const getSafeImageUrl = (imageUrl) => {
-    const safeUrl = !imageUrl || imageUrl.trim() === '' || imageUrl === '""' 
+    return !imageUrl || imageUrl.trim() === '' || imageUrl === '""' 
       ? assets.profile_img 
       : imageUrl;
-    console.log("🖼️ Image URL conversion:", { original: imageUrl, safe: safeUrl });
-    return safeUrl;
   };
 
   // Show loading
   if (loading) {
-    console.log("⏳ Rendering loading state");
     return <Loading />;
   }
 
   // Show error if not educator
   if (!isEducator) {
-    console.log("🚫 Rendering non-educator error");
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -103,12 +70,6 @@ const Dashboard = () => {
           <p className="text-gray-400 text-sm">
             You need an educator account to view the dashboard.
           </p>
-          <div className="mt-4 p-4 bg-yellow-100 rounded-lg max-w-md mx-auto">
-            <h3 className="font-bold mb-2">Debug Information:</h3>
-            <p className="text-sm">Current Role: {userData?.role || 'Not set'}</p>
-            <p className="text-sm">isEducator: {isEducator?.toString()}</p>
-            <p className="text-sm">User ID: {userData?._id || 'No user ID'}</p>
-          </div>
         </div>
       </div>
     );
@@ -116,7 +77,6 @@ const Dashboard = () => {
 
   // Show error message
   if (error && !dashboardData) {
-    console.log("❌ Rendering error state:", error);
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -133,9 +93,6 @@ const Dashboard = () => {
     );
   }
 
-  console.log("🎨 Rendering dashboard with data:", dashboardData);
-
-  // Show dashboard with data
   return dashboardData ? (
     <div className="min-h-screen flex flex-col items-start justify-between gap-8 md:p-8 md:pb-0 p-4 pt-8 pb-0">
       <div className="space-y-5 w-full">
@@ -143,21 +100,11 @@ const Dashboard = () => {
           <Logger/>
         </div>
         
-        {/* Debug Info Box */}
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-          <h3 className="font-bold text-blue-800 mb-2">Dashboard Debug Info</h3>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>Total Courses: <strong>{dashboardData.totalCourses || 0}</strong></div>
-            <div>Total Enrollments: <strong>{dashboardData.enrolledStudentsData?.length || 0}</strong></div>
-            <div>Total Earnings: <strong>{currency}{dashboardData.totalEarnings || 0}</strong></div>
-            <div>Data Type: <strong>{typeof dashboardData}</strong></div>
-          </div>
-        </div>
-        
-        {/* Responsive Grid for Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 items-center w-full">
+        {/* Responsive Grid for Cards - REMOVED EARNINGS CARD */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-5 items-center w-full">
+          {/* Total Enrollments Card */}
           <div className="flex items-center gap-3 shadow-card border border-blue-500 p-4 w-full rounded-md">
-            <img src={assets.patients_icon} alt="enrollments" />
+            <img src={assets.patients_icon} alt="enrollments" className="w-12 h-12" />
             <div>
               <p className="text-2xl font-medium text-gray-600">
                 {dashboardData.enrolledStudentsData?.length || 0}
@@ -166,8 +113,9 @@ const Dashboard = () => {
             </div>
           </div>
 
+          {/* Total Courses Card */}
           <div className="flex items-center gap-3 shadow-card border border-blue-500 p-4 w-full rounded-md">
-            <img src={assets.appointments_icon} alt="courses" />
+            <img src={assets.appointments_icon} alt="courses" className="w-12 h-12" />
             <div>
               <p className="text-2xl font-medium text-gray-600">
                 {dashboardData.totalCourses || 0}
@@ -176,15 +124,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shadow-card border border-blue-500 p-4 w-full rounded-md">
-            <img src={assets.earning_icon} alt="earnings" />
-            <div className="whitespace-nowrap">
-              <p className="text-2xl font-medium text-gray-600 text-nowrap">
-                {currency}{dashboardData.totalEarnings || 0}
-              </p>
-              <p className="text-base text-gray-500">Total Earnings</p>
-            </div>
-          </div>
+          {/* REMOVED: Earnings Card */}
         </div>
 
         <div className="pt-8 w-full mb-10">
@@ -244,7 +184,6 @@ const Dashboard = () => {
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <p className="text-gray-500 text-lg mb-4">No dashboard data available.</p>
-        <p className="text-gray-400 text-sm mb-4">This means the API returned no data.</p>
         <button 
           onClick={fetchDashboardData}
           className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"

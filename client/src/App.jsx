@@ -2,7 +2,7 @@ import React from 'react'
 import { Route, Routes ,useMatch} from 'react-router-dom'
 import Home from './pages/student/Home'
 import CourseList from './pages/student/CourseList'
-import CourseDetails from './pages/student/CourseDetails'
+import CourseDetails from './pages/student/CourseDetails' // Make sure this import matches
 import MyEnrollments from './pages/student/MyEnrollments'
 import Player from './pages/student/Player'
 import Loading from './component/student/Loading'

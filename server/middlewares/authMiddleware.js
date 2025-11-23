@@ -15,11 +15,7 @@ export const protectEducator = async (req, res, next) => {
             return res.status(401).json({ success: false, message: "Unauthorized Access!" });
         }
 
-        // This would check real Clerk in production
-        // const response = await clerkClient.users.getUser(userId);
-        // if (response.publicMetadata.role !== 'educator') {
-        //     return res.status(403).json({ success: false, message: "Educator access required!" });
-        // }
+        
 
         // For now, allow all authenticated users in development
         console.log("🔧 Development mode - educator check bypassed");

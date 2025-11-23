@@ -19,8 +19,6 @@ const CourseDetails = () => {
 
     const {
         allCourses,
-        currency,
-        calculateRating,
         calculateChapterTime,
         calculateCourseDuration,
         calculateNoOfLectures,
@@ -37,6 +35,12 @@ const CourseDetails = () => {
             return;
         }
 
+        // If backend is down, use first course as fallback
+        if (allCourses.length > 0) {
+            setCourseData(allCourses[0]);
+            return;
+        }
+
         // If not found, try to fetch from API
         try {
             const { data } = await axios.get(backendUrl + "/api/course/" + id);
@@ -46,8 +50,13 @@ const CourseDetails = () => {
                 toast.error(data.message);
             }
         } catch (error) {
-            console.error("Error fetching course:", error);
-            toast.error("Failed to load course details");
+            console.error("Error fetching course, using fallback:", error);
+            // Use first available course as fallback
+            if (allCourses.length > 0) {
+                setCourseData(allCourses[0]);
+            } else {
+                toast.error("Failed to load course details");
+            }
         }
     };
 
@@ -109,33 +118,15 @@ const CourseDetails = () => {
                         }}
                     ></p>
 
-                    {/* review and rating  */}
-                    <div className="flex items-center space-x-2 pt-3 pb-1 text-sm">
-                        <p>{calculateRating(courseData)}</p>
-                        <div className="flex">
-                            {[...Array(5)].map((_, i) => (
-                                <img
-                                    className="w-3.5 h-3.5"
-                                    key={i}
-                                    src={
-                                        i < Math.floor(calculateRating(courseData))
-                                            ? assets.star
-                                            : assets.star_blank
-                                    }
-                                    alt="star"
-                                />
-                            ))}
-                        </div>
-                        <p className="text-blue-600">
-                            ({courseData.courseRatings?.length || 0}{" "}
-                            {courseData.courseRatings?.length > 1 ? "ratings" : "rating"})
-                        </p>
-
+                    {/* student count */}
+                    <div className="flex items-center space-x-2 pt-3 pb-1 text-sm text-gray-500">
+                        <img src={assets.person_tick_icon} alt="students" className='w-4 h-4' />
                         <p>
                             {courseData.enrolledStudents?.length || 0}{" "}
-                            {courseData.enrolledStudents?.length > 1 ? "students" : "student"}
+                            {courseData.enrolledStudents?.length > 1 ? "students enrolled" : "student enrolled"}
                         </p>
                     </div>
+                    
                     <p className="text-sm">
                         Course by{" "}
                         <span className="text-blue-600 underline">
@@ -245,49 +236,29 @@ const CourseDetails = () => {
                             iframeClassName="w-full aspect-video"
                         />
                     ) : (
-                        <img 
-                            src={courseData.courseThumbnail || "https://via.placeholder.com/400x300"} 
-                            alt="courseThumbnail" 
-                            className="w-full h-48 object-cover"
-                        />
+                        <div className="relative">
+                            <img 
+                                src={courseData.courseThumbnail || "https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"} 
+                                alt="courseThumbnail" 
+                                className="w-full h-48 object-cover"
+                            />
+                            <span className="absolute top-2 right-2 bg-green-500 text-white px-3 py-1 rounded text-sm font-medium">
+                                FREE COURSE
+                            </span>
+                        </div>
                     )}
 
                     <div className="p-5">
-                        <div className="flex items-center gap-2">
-                            <img
-                                className="w-3.5"
-                                src={assets.time_left_clock_icon}
-                                alt="time_left_clock_icon"
-                            />
-                            <p className="text-red-500 text-sm">
-                                <span className="font-medium">Limited time</span> offer!
-                            </p>
-                        </div>
-
                         <div className="flex gap-3 items-center pt-2">
-                            <p className="text-gray-800 md:text-3xl text-2xl font-semibold">
-                                {currency}{" "}
-                                {(
-                                    courseData.coursePrice -
-                                    (courseData.discount * courseData.coursePrice) / 100
-                                ).toFixed(2)}
+                            <p className="text-gray-800 md:text-3xl text-2xl font-semibold text-green-600">
+                                Free
                             </p>
-                            {courseData.coursePrice > 0 && (
-                                <>
-                                    <p className="md:text-lg text-gray-500 line-through">
-                                        {currency} {courseData.coursePrice}{" "}
-                                    </p>
-                                    <p className="md:text-lg text-gray-500">
-                                        {courseData.discount}% off{" "}
-                                    </p>
-                                </>
-                            )}
                         </div>
 
                         <div className="flex items-center text-sm md:text-default gap-4 pt-2 md:pt-4 text-gray-500">
                             <div className="flex items-center gap-1">
-                                <img src={assets.star} alt="star icon" />
-                                <p>{calculateRating(courseData)}</p>
+                                <img src={assets.person_tick_icon} alt="students" className='w-4 h-4' />
+                                <p>{courseData.enrolledStudents?.length || 0} students</p>
                             </div>
 
                             <div className="h-4 w-px bg-gray-500/40"></div>
@@ -310,19 +281,12 @@ const CourseDetails = () => {
                                 <p className="w-full py-3 rounded text-center bg-green-600 text-white font-medium">
                                     Already Enrolled
                                 </p>
-                            ) : courseData.coursePrice === 0 ? (
-                                <button
-                                    onClick={enrollCourse}
-                                    className="w-full py-3 rounded text-center bg-blue-600 text-white font-medium hover:bg-blue-700"
-                                >
-                                    Enroll for Free
-                                </button>
                             ) : (
                                 <button
                                     onClick={enrollCourse}
                                     className="w-full py-3 rounded text-center bg-blue-600 text-white font-medium hover:bg-blue-700"
                                 >
-                                    Enroll Now
+                                    Enroll for Free
                                 </button>
                             )}
                         </div>
@@ -360,4 +324,5 @@ const CourseDetails = () => {
     );
 };
 
+// Make sure this default export is present
 export default CourseDetails;

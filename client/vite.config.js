@@ -15,6 +15,8 @@ export default defineConfig({
       globals: true,
       // Provide compatibility in the dev server (recommended)
       protocolImports: true, 
+
+      
     })
   ],
 })

@@ -1,6 +1,11 @@
-// server/routes/userRoutes.js
 import express from "express";
-import { addUserRating, getUserCourseProgress, getUserData, purchaseCourse, updateUserCourseProgress, userEnrolledCourses } from "../controllers/userController.js";
+import { 
+  getUserData, 
+  userEnrolledCourses, 
+  purchaseCourse, 
+  updateUserCourseProgress, 
+  getUserCourseProgress 
+} from "../controllers/userController.js";
 import User from '../models/User.js';
 
 const userRouter = express.Router();
@@ -11,7 +16,6 @@ userRouter.get('/enrolled-courses', userEnrolledCourses);
 userRouter.post('/purchase', purchaseCourse);
 userRouter.post('/update-course-progress', updateUserCourseProgress);
 userRouter.post('/get-course-progress', getUserCourseProgress);
-userRouter.post('/add-rating', addUserRating);
 
 // Temporary route to make current user an educator
 userRouter.patch('/make-educator', async (req, res) => {
@@ -57,5 +61,4 @@ userRouter.patch('/make-educator', async (req, res) => {
     }
 });
 
-// MAKE SURE THIS LINE IS AT THE END
 export default userRouter;

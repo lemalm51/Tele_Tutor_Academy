@@ -1,6 +1,6 @@
+import { cloudinary } from '../configs/cloudinary.js';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
-import { Purchase } from '../models/Purchase.js';
 
 // Get educator courses
 export const getEducatorCourses = async (req, res) => {
@@ -19,7 +19,7 @@ export const getEducatorCourses = async (req, res) => {
     }
 }
 
-// Add new course 
+// Add new course - FIXED: Make sure this export exists
 export const addCourse = async (req, res) => {
     try {
         const auth = req.auth;
@@ -34,7 +34,26 @@ export const addCourse = async (req, res) => {
 
         const parsedCourseData = JSON.parse(courseData);
         parsedCourseData.educator = educatorId;
-        parsedCourseData.courseThumbnail = "https://via.placeholder.com/400x300/4F46E5/FFFFFF?text=Course+Thumbnail";
+
+        // Handle image upload
+        if (req.file) {
+            try {
+                // Upload to Cloudinary
+                const result = await cloudinary.uploader.upload(req.file.path, {
+                    folder: 'stema_courses',
+                    resource_type: 'image'
+                });
+                parsedCourseData.courseThumbnail = result.secure_url;
+                console.log('✅ Image uploaded to Cloudinary:', result.secure_url);
+            } catch (uploadError) {
+                console.error('❌ Cloudinary upload failed:', uploadError);
+                // Fallback to placeholder
+                parsedCourseData.courseThumbnail = 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1074&q=80';
+            }
+        } else {
+            // Use default placeholder image
+            parsedCourseData.courseThumbnail = 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1074&q=80';
+        }
 
         const newCourse = await Course.create(parsedCourseData);
         await newCourse.save();
@@ -55,11 +74,6 @@ export const educatorDashboardData = async (req, res) => {
         const courses = await Course.find({ educator });
         const totalCourses = courses.length;
 
-        let totalEarnings = 0;
-        courses.forEach(course => {
-            totalEarnings += course.enrolledStudents.length;
-        });
-
         const enrolledStudentsData = [];
         for (const course of courses) {
             const students = await User.find({
@@ -77,7 +91,6 @@ export const educatorDashboardData = async (req, res) => {
         return res.json({
             success: true,
             dashboardData: {
-                totalEarnings,
                 enrolledStudentsData,
                 totalCourses
             }
