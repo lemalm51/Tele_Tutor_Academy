@@ -2,6 +2,7 @@ import { cloudinary } from '../configs/cloudinary.js';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
 
+
 // Get educator courses
 export const getEducatorCourses = async (req, res) => {
     try {

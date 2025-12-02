@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import Navbar from "../../component/educator/Navbar";
 import Sidebar from "../../component/educator/Sidbar";
 import Footer from "../../component/educator/Footer";
+import BecomeEducator from "./BecomeEducator";
 const Educator = () => {
 	return (
 		<div className="text-default min-h-screen bg-white">
@@ -11,6 +12,8 @@ const Educator = () => {
 				<Sidebar />
 				<div className="flex-1">{<Outlet />}</div>
 			</div>
+			{/* <BecomeEducator/> */}
+
       <Footer/>
 		</div>
 	);
