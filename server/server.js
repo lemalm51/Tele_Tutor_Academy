@@ -26,7 +26,25 @@ app.use(express.json());
 
 // Test route
 app.get('/api/test', (req, res) => {
-    res.json({ success: true, message: 'Server is working!' });
+    res.json({ success: true, message: 'Server of STEMA is working!' });
+});
+
+// ROOT ROUTE - ADD THIS
+app.get('/', (req, res) => {
+    res.json({ 
+        success: true, 
+        message: '🚀 Backend API Server is running!',
+        status: 'active',
+        timestamp: new Date().toISOString(),
+        endpoints: {
+            test: 'GET /api/test',
+            courses: 'GET /api/course/all',
+            course_by_id: 'GET /api/course/:id',
+            user_data: 'GET /api/user/data (protected)',
+            educator_courses: 'GET /api/educator/courses (protected)'
+        },
+        environment: process.env.NODE_ENV || 'development'
+    });
 });
 
 // Public routes
@@ -69,8 +87,11 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 console.log('🔧 Starting server on port:', PORT);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`✅ Server running on port ${PORT}`);
     console.log('✅ Database connected successfully!');
     console.log('✅ Cloudinary connected successfully!');
 });
+
+// Export the app for Vercel - ADD THIS
+export default app;
