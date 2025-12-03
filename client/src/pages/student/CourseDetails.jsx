@@ -276,7 +276,7 @@ const CourseDetails = () => {
                             </div>
                         </div>
 
-                        <div className="mt-6">
+                        <div className="mt-6 space-y-4">
                             {isAlreadyEnrolled ? (
                                 <p className="w-full py-3 rounded text-center bg-green-600 text-white font-medium">
                                     Already Enrolled
@@ -284,10 +284,29 @@ const CourseDetails = () => {
                             ) : (
                                 <button
                                     onClick={enrollCourse}
-                                    className="w-full py-3 rounded text-center bg-blue-600 text-white font-medium hover:bg-blue-700"
+                                    className="w-full py-3 rounded text-center bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
                                 >
                                     Enroll for Free
                                 </button>
+                            )}
+
+                            {/* VIDEO CONFERENCE BUTTON - ADDED HERE */}
+                            {userData && (
+                                <Link 
+                                    to={`/video-class/${courseData._id}`}
+                                    className="block w-full text-center py-3 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl"
+                                >
+                                    🎥 Join Live Class Session
+                                </Link>
+                            )}
+
+                            {!userData && (
+                                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                    <p className="text-yellow-800 text-sm text-center">
+                                        <span className="font-semibold">Sign in required:</span> 
+                                        Please sign in to enroll or join live classes
+                                    </p>
+                                </div>
                             )}
                         </div>
 
@@ -312,6 +331,8 @@ const CourseDetails = () => {
                                 <li>Downloadable resources and source code</li>
                                 <li>Quizzes to test your knowledge</li>
                                 <li>Certificate of completion</li>
+                                <li className="text-purple-600 font-medium">🎥 Live interactive classes</li>
+                                <li className="text-purple-600 font-medium">💬 Real-time chat with instructor</li>
                             </ul>
                         </div>
                     </div>
@@ -324,5 +345,4 @@ const CourseDetails = () => {
     );
 };
 
-// Make sure this default export is present
 export default CourseDetails;

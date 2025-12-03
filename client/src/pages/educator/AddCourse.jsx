@@ -163,8 +163,8 @@ const AddCourse = () => {
 
         <div className='flex items-center justify-between flex-wrap'>
           <div className='flex flex-col gap-1'>
-            <p>Course Price</p>
-            <input onChange={e => setCoursePrice(e.target.value)} value={coursePrice} type="number" placeholder='0' className='outline-none md:py-2.5 w-28 py-2 px-3 rounded border border-gray-500' required />
+            {/* <p>Course Price</p> */}
+            {/* <input onChange={e => setCoursePrice(e.target.value)} value={coursePrice} type="number" placeholder='0' className='outline-none md:py-2.5 w-28 py-2 px-3 rounded border border-gray-500' required /> */}
           </div>
 
           <div className='flex md:flex-row flex-col items-center gap-3 mt-5'>
@@ -191,8 +191,8 @@ const AddCourse = () => {
         </div>
 
         <div className='flex flex-col gap-1'>
-          <p>Discount %</p>
-          <input onChange={e => setDiscount(e.target.value)} value={discount} type="number" placeholder='0' min={0} max={100} className='outline-none md:py-2.5 py-2 px-3 w-28 rounded border border-gray-500' required />
+          {/* <p>Discount %</p> */}
+          {/* <input onChange={e => setDiscount(e.target.value)} value={discount} type="number" placeholder='0' min={0} max={100} className='outline-none md:py-2.5 py-2 px-3 w-28 rounded border border-gray-500' required /> */}
         </div>
 
         {/* Adding chapters & lectures  */}

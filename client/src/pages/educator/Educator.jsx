@@ -12,7 +12,7 @@ const Educator = () => {
 				<Sidebar />
 				<div className="flex-1">{<Outlet />}</div>
 			</div>
-			{/* <BecomeEducator/> */}
+			<BecomeEducator/>
 
       <Footer/>
 		</div>
