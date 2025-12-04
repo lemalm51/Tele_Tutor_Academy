@@ -180,63 +180,22 @@ const BecomeEducator = () => {
               Join our community of educators making STEM education accessible in Asella
             </p>
             
-            <button
-              onClick={handleBecomeEducator}
-              disabled={loading}
-              className={`px-8 py-4 rounded-lg text-xl font-semibold transition-colors shadow-lg ${
-                loading 
-                  ? 'bg-gray-400 cursor-not-allowed text-white' 
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
-            >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin mr-2"></div>
-                  Processing...
-                </div>
-              ) : (
-                'Become an Educator Now'
-              )}
-            </button>
             
-            <p className="text-gray-500 mt-4 text-sm">
-              It's free and takes just one click!
-            </p>
-            
-            {/* Enhanced Debug info */}
             <div className="mt-6 p-4 bg-yellow-100 rounded text-xs text-yellow-800 text-left font-mono">
-              <strong>🚨 Debug Info:</strong>
+             
               <div className="mt-2 whitespace-pre-wrap">
-                User: {user ? user.fullName : 'Not logged in'}<br />
-                Backend: {backendUrl}<br />
-                Loading: {loading ? 'Yes' : 'No'}<br />
+                Educator Name: {user ? user.fullName : 'Not logged in'}<br />
+                
                 <br />
-                <strong>Process Log:</strong><br />
-                {debugInfo || 'No actions yet... Click the button above to test.'}
               </div>
-              <button 
-                onClick={() => setDebugInfo('')}
-                className="mt-2 bg-yellow-500 text-white px-2 py-1 rounded text-xs"
-              >
-                Clear Log
-              </button>
+              
             </div>
           </div>
 
           {/* Quick Access Buttons */}
           <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button 
-              onClick={() => navigate('/educator')}
-              className="bg-green-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
-            >
-              Go to Educator Dashboard
-            </button>
-            <button 
-              onClick={() => navigate('/educator/add-course')}
-              className="bg-purple-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
-            >
-              Add New Course
-            </button>
+           
+           
             <button 
               onClick={() => navigate('/')}
               className="bg-gray-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
@@ -246,7 +205,7 @@ const BecomeEducator = () => {
           </div>
         </div>
       </div>
-      <Footer />
+      {/* <Footer /> */}
     </>
   )
 }

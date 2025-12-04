@@ -9,6 +9,33 @@ import educatorRouter from './routes/educatorRoutes.js';
 import { seedSampleData } from './seedData.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import recordingRouter from './routes/recordingRoutes.js';
+
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Ensure uploads directory exists
+const ensureUploadsDir = () => {
+  const uploadsDir = path.join(__dirname, 'uploads');
+  const recordingsDir = path.join(uploadsDir, 'recordings');
+  
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log('📁 Created uploads directory');
+  }
+  
+  if (!fs.existsSync(recordingsDir)) {
+    fs.mkdirSync(recordingsDir, { recursive: true });
+    console.log('📁 Created recordings directory');
+  }
+};
+
+// Call this before routes
+ensureUploadsDir();
 
 // Initialize express 
 const app = express();
@@ -16,12 +43,20 @@ const app = express();
 // Create HTTP server
 const httpServer = createServer(app);
 
-// Initialize Socket.io
+// Initialize Socket.io WITH PROPER CONFIG
 const io = new Server(httpServer, {
   cors: {
     origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000", "http://localhost:5175"],
     methods: ["GET", "POST"],
-    credentials: true
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"]
+  },
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000, // 2 minutes
+    skipMiddlewares: true
   }
 });
 
@@ -32,15 +67,30 @@ await connectCloudinary();
 // Seed sample data after database connection
 await seedSampleData();
 
-// Simple CORS configuration for REST API
-app.use(cors());
+// CORS configuration for REST API
+app.use(cors({
+  origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+}));
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Test route
 app.get('/api/test', (req, res) => {
   res.json({ success: true, message: 'Server of STEMA is working!' });
+});
+
+// Socket.io connection test
+app.get('/api/socket-test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Socket.io server is running',
+    connectedClients: io.engine.clientsCount,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // ROOT ROUTE
@@ -52,6 +102,7 @@ app.get('/', (req, res) => {
     timestamp: new Date().toISOString(),
     endpoints: {
       test: 'GET /api/test',
+      socket_test: 'GET /api/socket-test',
       courses: 'GET /api/course/all',
       course_by_id: 'GET /api/course/:id',
       user_data: 'GET /api/user/data (protected)',
@@ -63,6 +114,7 @@ app.get('/', (req, res) => {
 
 // Public routes
 app.use('/api/course', courseRouter);
+app.use('/api/recordings', recordingRouter);
 
 // Mock auth middleware
 const mockAuth = (req, res, next) => {
@@ -85,22 +137,59 @@ app.use('/api/educator', mockAuth, educatorRouter);
 // Store active rooms and users
 const activeRooms = new Map(); // roomId -> {users: Map, educator: socketId}
 const userSocketMap = new Map(); // userId -> socketId
+app.use('/uploads', express.static('uploads'));
+
+// Add connection state tracking
+const connectionState = new Map(); // socketId -> { connectedAt, lastPing }
 
 io.on('connection', (socket) => {
   console.log('🎥 New socket connection:', socket.id);
+  
+  // Track connection
+  connectionState.set(socket.id, {
+    connectedAt: new Date(),
+    lastPing: Date.now(),
+    userId: null
+  });
+
+  // Send welcome message
+  socket.emit('welcome', { 
+    message: 'Connected to STEMA video server',
+    socketId: socket.id,
+    serverTime: new Date().toISOString()
+  });
+
+  // Set up heartbeat
+  const heartbeatInterval = setInterval(() => {
+    socket.emit('ping', { timestamp: Date.now() });
+  }, 15000);
+
+  socket.on('pong', (data) => {
+    const state = connectionState.get(socket.id);
+    if (state) {
+      state.lastPing = Date.now();
+    }
+    console.log(`❤️ Heartbeat from ${socket.id}`);
+  });
 
   // Join a video room
   socket.on('join-room', (data) => {
     try {
       const { roomId, userId, userName, isEducator } = data;
       
-      console.log(`${userName} attempting to join room ${roomId}`);
+      console.log(`${userName} (${userId}) attempting to join room ${roomId}`);
+      
+      // Update connection state
+      const state = connectionState.get(socket.id);
+      if (state) {
+        state.userId = userId;
+      }
       
       // Initialize room if it doesn't exist
       if (!activeRooms.has(roomId)) {
         console.log(`Creating new room: ${roomId}`);
         activeRooms.set(roomId, {
-          users: new Map(),  // Initialize users Map
+          users: new Map(),
           educator: isEducator ? socket.id : null,
           createdAt: new Date(),
           roomName: data.roomName || 'Live Class'
@@ -155,7 +244,7 @@ io.on('connection', (socket) => {
       
     } catch (error) {
       console.error('Error in join-room:', error);
-      socket.emit('error', { message: 'Failed to join room' });
+      socket.emit('error', { message: 'Failed to join room', error: error.message });
     }
   });
 
@@ -313,16 +402,20 @@ io.on('connection', (socket) => {
         }
         
         socket.leave(roomId);
+        console.log(`🚪 ${user.userName} left room ${roomId}`);
       }
     } catch (error) {
       console.error('Error in leave-room:', error);
     }
   });
 
-  // Disconnect
-  socket.on('disconnect', () => {
+  // Disconnect handler - ONLY ONE PLACE!
+  socket.on('disconnect', (reason) => {
     try {
-      console.log(`❌ User disconnected: ${socket.id}`);
+      console.log(`❌ User disconnected: ${socket.id}, Reason: ${reason}`);
+      
+      // Clear heartbeat interval
+      clearInterval(heartbeatInterval);
       
       // Find and remove user from all rooms
       for (const [roomId, room] of activeRooms.entries()) {
@@ -333,7 +426,8 @@ io.on('connection', (socket) => {
           // Notify room about user disconnect
           socket.to(roomId).emit('user-disconnected', {
             userId: user.userId,
-            userName: user.userName
+            userName: user.userName,
+            reason: reason
           });
 
           // Update room
@@ -348,6 +442,8 @@ io.on('connection', (socket) => {
             console.log(`🗑️ Deleting empty room: ${roomId}`);
             activeRooms.delete(roomId);
           }
+          
+          console.log(`🗑️ Removed ${user.userName} from room ${roomId}`);
         }
       }
 
@@ -355,11 +451,18 @@ io.on('connection', (socket) => {
       for (const [userId, socketId] of userSocketMap.entries()) {
         if (socketId === socket.id) {
           userSocketMap.delete(userId);
+          console.log(`🗑️ Removed user mapping for ${userId}`);
           break;
         }
       }
+      
+      // Remove from connection state
+      connectionState.delete(socket.id);
+      
+      console.log(`📊 Active connections: ${io.engine.clientsCount}`);
+      
     } catch (error) {
-      console.error('Error in disconnect:', error);
+      console.error('Error in disconnect handler:', error);
     }
   });
 });
@@ -379,11 +482,12 @@ app.use((err, req, res, next) => {
   console.error('Server Error:', err);
   res.status(500).json({ 
     success: false, 
-    message: 'Internal server error' 
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
 
-// Start server - NOW USING httpServer INSTEAD OF app.listen()
+// Start server
 const PORT = process.env.PORT || 3000;
 console.log('🔧 Starting server on port:', PORT);
 
@@ -392,6 +496,15 @@ httpServer.listen(PORT, () => {
   console.log(`✅ WebSocket Server ready at ws://localhost:${PORT}`);
   console.log('✅ Database connected successfully!');
   console.log('✅ Cloudinary connected successfully!');
+});
+
+// Clean up function
+process.on('SIGINT', () => {
+  console.log('\n🔻 Shutting down server...');
+  httpServer.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
 });
 
 // Export the app for Vercel

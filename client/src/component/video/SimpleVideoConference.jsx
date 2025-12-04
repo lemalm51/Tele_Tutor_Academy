@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import io from 'socket.io-client';
 import { useUser } from '@clerk/clerk-react';
 import './SimpleVideoConference.css';
 
-// Attendance service (simplified version)
+// Import RecordingManager
+import RecordingManager from './RecordingManager';
+
+// Attendance service
 const attendanceService = {
   records: [],
   
@@ -128,14 +131,14 @@ const AttendanceTracker = ({ roomId, users, isEducatorMode }) => {
         <div className="flex gap-2">
           <button 
             onClick={generateReport}
-            className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+            className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-all"
           >
             Generate Report
           </button>
           <button 
             onClick={exportToCSV}
             disabled={!report}
-            className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Export CSV
           </button>
@@ -185,7 +188,7 @@ const AttendanceTracker = ({ roomId, users, isEducatorMode }) => {
         <h4 className="text-sm font-semibold text-white mb-2">Recent Activity</h4>
         <div className="space-y-2 max-h-32 overflow-y-auto">
           {attendance.slice().reverse().map((record, idx) => (
-            <div key={idx} className="text-xs bg-gray-800 p-2 rounded hover:bg-gray-700">
+            <div key={idx} className="text-xs bg-gray-800 p-2 rounded hover:bg-gray-700 transition-colors">
               <span className="text-gray-400">
                 {new Date(record.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}: 
               </span>
@@ -194,142 +197,6 @@ const AttendanceTracker = ({ roomId, users, isEducatorMode }) => {
           ))}
         </div>
       </div>
-    </div>
-  );
-};
-
-// Recording Manager Component
-const RecordingManager = ({ localStream, roomId, isEducatorMode }) => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordings, setRecordings] = useState([]);
-  const mediaRecorderRef = useRef(null);
-  const recordedChunksRef = useRef([]);
-  const recordingStartTimeRef = useRef(null);
-
-  const startRecording = () => {
-    if (!localStream) {
-      alert('No media stream available for recording');
-      return;
-    }
-
-    const options = { mimeType: 'video/webm;codecs=vp9,opus' };
-    try {
-      const mediaRecorder = new MediaRecorder(localStream, options);
-      mediaRecorderRef.current = mediaRecorder;
-      recordedChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          recordedChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        const recording = {
-          id: Date.now(),
-          url,
-          timestamp: new Date(),
-          roomId,
-          duration: (Date.now() - recordingStartTimeRef.current) / 1000
-        };
-        
-        setRecordings(prev => [recording, ...prev]);
-        saveRecording(blob, roomId);
-      };
-
-      mediaRecorder.start(1000); // Collect data every second
-      setIsRecording(true);
-      recordingStartTimeRef.current = Date.now();
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      alert('Failed to start recording: ' + error.message);
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const saveRecording = (blob, roomId) => {
-    console.log('Recording saved:', blob.size, 'bytes');
-    // In production, upload to server
-    // fetch('/api/recordings/upload', {
-    //   method: 'POST',
-    //   body: formData
-    // });
-  };
-
-  const downloadRecording = (recording) => {
-    const a = document.createElement('a');
-    a.href = recording.url;
-    a.download = `stema-recording-${recording.roomId}-${new Date(recording.timestamp).toISOString()}.webm`;
-    a.click();
-  };
-
-  if (!isEducatorMode) return null;
-
-  return (
-    <div className="sidebar-section">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-white">🎥 Recording</h3>
-        <div className="flex gap-2">
-          <button
-            onClick={isRecording ? stopRecording : startRecording}
-            className={`px-4 py-2 rounded font-semibold transition-all ${
-              isRecording 
-                ? 'bg-red-600 hover:bg-red-700' 
-                : 'bg-green-600 hover:bg-green-700'
-            } text-white`}
-          >
-            {isRecording ? '⏹️ Stop Recording' : '⏺️ Start Recording'}
-          </button>
-        </div>
-      </div>
-
-      {isRecording && (
-        <div className="recording-indicator mb-4 p-3 bg-red-900/30 rounded-lg border border-red-500/50">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-            <span className="font-semibold text-red-300">Recording in progress...</span>
-          </div>
-          <div className="text-xs text-gray-400 mt-1">
-            Recording this session for future reference. Duration: {Math.round((Date.now() - recordingStartTimeRef.current) / 1000)}s
-          </div>
-        </div>
-      )}
-
-      {recordings.length > 0 && (
-        <div className="recordings-list">
-          <h4 className="font-semibold text-white mb-2">Recorded Sessions</h4>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {recordings.map(recording => (
-              <div key={recording.id} className="bg-gray-800 p-3 rounded hover:bg-gray-700 transition-colors">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-sm text-white">
-                      {new Date(recording.timestamp).toLocaleString()}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      Duration: {Math.round(recording.duration)}s
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => downloadRecording(recording)}
-                    className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
-                  >
-                    Download
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -345,15 +212,61 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [isAudioOn, setIsAudioOn] = useState(true);
   const [raisedHands, setRaisedHands] = useState([]);
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
   
   const localVideoRef = useRef(null);
   const socketRef = useRef();
+  const screenStreamRef = useRef(null);
+
+  // Show notification
+  const showNotification = useCallback((message, type = 'info') => {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 animate-slide-in ${
+      type === 'error' ? 'bg-red-600 text-white' :
+      type === 'warning' ? 'bg-yellow-600 text-white' :
+      'bg-blue-600 text-white'
+    }`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+      notification.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
+  }, []);
 
   useEffect(() => {
     // Initialize socket connection
-    const socketInstance = io('http://localhost:3000');
+    const socketInstance = io('http://localhost:3000', {
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      transports: ['websocket', 'polling'],
+      forceNew: true,
+      withCredentials: true
+    });
+    
     socketRef.current = socketInstance;
     setSocket(socketInstance);
+
+    // Socket connection events
+    socketInstance.on('connect', () => {
+      console.log('✅ Connected to server');
+      setConnectionStatus('connected');
+    });
+
+    socketInstance.on('disconnect', () => {
+      console.log('❌ Disconnected from server');
+      setConnectionStatus('disconnected');
+    });
+
+    socketInstance.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+      setConnectionStatus('error');
+    });
 
     // Get user media
     const setupMedia = async () => {
@@ -376,7 +289,7 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
           localVideoRef.current.srcObject = stream;
         }
 
-        // Join room
+        // Join room after getting media
         socketInstance.emit('join-room', {
           roomId: roomId,
           userId: user?.id || `user_${Date.now()}`,
@@ -396,7 +309,7 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
           roomName: courseName
         });
         
-        alert('Camera/microphone access denied. You can still participate in chat.');
+        showNotification('Camera/microphone access denied. You can still participate in chat.', 'warning');
       }
     };
 
@@ -423,13 +336,12 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
 
     socketInstance.on('user-connected', (userData) => {
       console.log('User connected:', userData);
-      // Show toast notification
-      showNotification(`${userData.userName} joined the class!`);
+      showNotification(`${userData.userName} joined the class!`, 'info');
     });
 
     socketInstance.on('user-disconnected', (userData) => {
       console.log('User disconnected:', userData);
-      showNotification(`${userData.userName} left the class.`);
+      showNotification(`${userData.userName} left the class.`, 'info');
     });
 
     socketInstance.on('hand-raised', ({ userName, timestamp }) => {
@@ -442,7 +354,7 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
         setRaisedHands(prev => prev.filter(h => h.userName !== userName));
       }, 30000);
       
-      showNotification(`✋ ${userName} raised their hand!`);
+      showNotification(`✋ ${userName} raised their hand!`, 'warning');
     });
 
     socketInstance.on('user-media-updated', ({ userId, type, enabled }) => {
@@ -460,12 +372,18 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
           if (audioTrack) audioTrack.enabled = false;
           setIsAudioOn(false);
         }
-        alert('Educator muted your audio');
+        showNotification('Educator muted your audio', 'warning');
+      } else if (action === 'remove') {
+        showNotification('You have been removed from the class', 'error');
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2000);
       }
     });
 
     // Cleanup
     return () => {
+      console.log('🧹 Cleaning up SimpleVideoConference');
       if (socketInstance) {
         socketInstance.emit('leave-room', roomId);
         socketInstance.disconnect();
@@ -473,21 +391,11 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
       }
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(track => track.stop());
+      }
     };
-  }, [roomId, courseName, isEducatorMode, user]);
-
-  // Show notification
-  const showNotification = (message) => {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = 'fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-slide-in';
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-      notification.remove();
-    }, 3000);
-  };
+  }, [roomId, courseName, isEducatorMode, user?.id, user?.fullName, showNotification]); // FIXED: Added dependencies
 
   // Media Controls
   const toggleVideo = () => {
@@ -502,6 +410,8 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
           type: 'video',
           enabled: videoTrack.enabled
         });
+        
+        showNotification(videoTrack.enabled ? 'Camera turned on' : 'Camera turned off', 'info');
       }
     }
   };
@@ -518,47 +428,87 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
           type: 'audio',
           enabled: audioTrack.enabled
         });
+        
+        showNotification(audioTrack.enabled ? 'Microphone unmuted' : 'Microphone muted', 'info');
       }
     }
   };
 
   const toggleScreenShare = async () => {
     try {
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          cursor: "always",
-          displaySurface: "monitor"
-        },
-        audio: true
-      });
-      
-      const videoTrack = screenStream.getVideoTracks()[0];
-      if (localVideoRef.current && localVideoRef.current.srcObject) {
-        const stream = localVideoRef.current.srcObject;
-        const oldVideoTrack = stream.getVideoTracks()[0];
+      if (!isScreenSharing) {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            cursor: "always",
+            displaySurface: "monitor"
+          },
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            sampleRate: 44100
+          }
+        });
         
-        if (oldVideoTrack) {
-          stream.removeTrack(oldVideoTrack);
-          stream.addTrack(videoTrack);
+        screenStreamRef.current = screenStream;
+        setIsScreenSharing(true);
+        
+        // Replace video track with screen share
+        const videoTrack = screenStream.getVideoTracks()[0];
+        if (localVideoRef.current && localVideoRef.current.srcObject) {
+          const stream = localVideoRef.current.srcObject;
+          const oldVideoTrack = stream.getVideoTracks()[0];
+          
+          if (oldVideoTrack) {
+            stream.removeTrack(oldVideoTrack);
+            stream.addTrack(videoTrack);
+          }
+          
+          socketRef.current?.emit('start-screen-share', roomId);
+          showNotification('Screen sharing started', 'info');
+          
+          videoTrack.onended = () => {
+            if (localStream) {
+              const cameraTrack = localStream.getVideoTracks()[0];
+              if (cameraTrack) {
+                stream.removeTrack(videoTrack);
+                stream.addTrack(cameraTrack);
+                socketRef.current?.emit('stop-screen-share', roomId);
+                setIsScreenSharing(false);
+                screenStreamRef.current = null;
+                showNotification('Screen sharing stopped', 'info');
+              }
+            }
+          };
+        }
+      } else {
+        // Stop screen sharing
+        if (screenStreamRef.current) {
+          screenStreamRef.current.getTracks().forEach(track => track.stop());
+          screenStreamRef.current = null;
         }
         
-        socketRef.current?.emit('start-screen-share', roomId);
-        
-        videoTrack.onended = () => {
-          if (localStream) {
+        // Switch back to camera
+        if (localStream && localVideoRef.current && localVideoRef.current.srcObject) {
+          const stream = localVideoRef.current.srcObject;
+          const screenTrack = stream.getVideoTracks().find(t => t.label.includes('screen') || t.label.includes('display'));
+          
+          if (screenTrack) {
+            stream.removeTrack(screenTrack);
             const cameraTrack = localStream.getVideoTracks()[0];
             if (cameraTrack) {
-              stream.removeTrack(videoTrack);
               stream.addTrack(cameraTrack);
-              socketRef.current?.emit('stop-screen-share', roomId);
             }
           }
-        };
+        }
+        
+        socketRef.current?.emit('stop-screen-share', roomId);
+        setIsScreenSharing(false);
+        showNotification('Screen sharing stopped', 'info');
       }
     } catch (error) {
       console.error('Error sharing screen:', error);
       if (error.name !== 'NotAllowedError') {
-        alert('Failed to share screen: ' + error.message);
+        showNotification('Failed to share screen: ' + error.message, 'error');
       }
     }
   };
@@ -582,11 +532,12 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
         roomId: roomId,
         userName: user?.fullName || 'Anonymous'
       });
+      showNotification('Hand raised! The educator will see your request.', 'info');
     }
   };
 
   // Educator controls
-  const muteUser = (userId) => {
+  const muteUser = (userId, userName) => {
     if (socketRef.current && isEducatorMode) {
       socketRef.current.emit('educator-control', {
         roomId: roomId,
@@ -594,12 +545,13 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
         targetUserId: userId,
         value: true
       });
+      showNotification(`${userName} has been muted`, 'warning');
     }
   };
 
-  const removeUser = (userId) => {
+  const removeUser = (userId, userName) => {
     if (socketRef.current && isEducatorMode) {
-      if (window.confirm('Are you sure you want to remove this participant?')) {
+      if (window.confirm(`Are you sure you want to remove ${userName} from the class?`)) {
         socketRef.current.emit('educator-control', {
           roomId: roomId,
           action: 'remove',
@@ -619,12 +571,31 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
       }
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(track => track.stop());
+      }
       window.location.href = '/';
     }
   };
 
+  // Copy room link
+  const copyRoomLink = () => {
+    const roomLink = `${window.location.origin}/video-class/${roomId}`;
+    navigator.clipboard.writeText(roomLink)
+      .then(() => showNotification('Room link copied to clipboard!', 'info'))
+      .catch(err => console.error('Failed to copy:', err));
+  };
+
   return (
     <div className="simple-video-container">
+      {/* Connection Status */}
+      <div className={`connection-status ${connectionStatus === 'connected' ? 'connection-connected' : 'connection-disconnected'}`}>
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <span>{connectionStatus === 'connected' ? 'Connected' : 'Connecting...'}</span>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="video-header">
         <h2>🎥 Live Class: {courseName}</h2>
@@ -650,7 +621,14 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
                 className="video-element"
               />
               <div className="video-label">
-                👤 {user?.fullName || 'You'} {isEducatorMode && '(Educator)'}
+                <div className="flex items-center justify-between">
+                  <span>👤 {user?.fullName || 'You'} {isEducatorMode && '(Educator)'}</span>
+                  <div className="flex gap-1">
+                    {isScreenSharing && <span className="text-xs bg-purple-600 px-2 py-0.5 rounded">🖥️ Sharing</span>}
+                    {!isVideoOn && <span className="text-xs bg-red-600 px-2 py-0.5 rounded">🚫 Camera</span>}
+                    {!isAudioOn && <span className="text-xs bg-red-600 px-2 py-0.5 rounded">🔇 Mic</span>}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -660,6 +638,12 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
                 <div className="placeholder-icon">👥</div>
                 <p>{users.length - 1 > 0 ? `${users.length - 1} other participants` : 'Waiting for others...'}</p>
                 <small className="mt-2">Room ID: {roomId}</small>
+                <button 
+                  onClick={copyRoomLink}
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
+                >
+                  Copy Invite Link
+                </button>
               </div>
             </div>
           </div>
@@ -684,10 +668,10 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
             
             <button 
               onClick={toggleScreenShare}
-              className="control-btn btn-share"
-              title="Share your screen"
+              className={`control-btn ${isScreenSharing ? 'btn-muted' : 'btn-share'}`}
+              title={isScreenSharing ? 'Stop screen sharing' : 'Share your screen'}
             >
-              🖥️ Share Screen
+              {isScreenSharing ? '🖥️ Stop Share' : '🖥️ Share Screen'}
             </button>
             
             <button 
@@ -709,12 +693,15 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
 
           {/* Raised Hands */}
           {raisedHands.length > 0 && (
-            <div className="raised-hands-section mt-4 p-3 bg-yellow-900/30 rounded-lg border border-yellow-500/50">
-              <h4 className="font-semibold text-yellow-300 mb-2">✋ Raised Hands</h4>
+            <div className="raised-hands-section">
+              <h4 className="font-semibold text-yellow-300 mb-2">✋ Raised Hands ({raisedHands.length})</h4>
               <div className="space-y-1">
                 {raisedHands.map((hand, idx) => (
-                  <div key={idx} className="text-sm text-yellow-200">
-                    {hand.userName} raised hand
+                  <div key={idx} className="text-sm text-yellow-200 flex items-center justify-between">
+                    <span>{hand.userName}</span>
+                    <span className="text-xs text-yellow-400">
+                      {Math.floor((new Date() - new Date(hand.timestamp)) / 1000)}s ago
+                    </span>
                   </div>
                 ))}
               </div>
@@ -733,19 +720,21 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
               ) : (
                 users.map((participant, index) => (
                   <div key={index} className="participant-item">
-                    <div className="flex items-center gap-3">
+                    <div className="participant-info">
                       <div className="participant-avatar">
                         {participant.userName.charAt(0).toUpperCase()}
                       </div>
-                      <div>
+                      <div className="participant-details">
                         <span className="participant-name">
                           {participant.userName}
                           {participant.isEducator && ' 👨‍🏫'}
                         </span>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`status-dot ${participant.videoEnabled ? 'dot-green' : 'dot-red'}`} title="Video"></span>
-                          <span className={`status-dot ${participant.audioEnabled ? 'dot-green' : 'dot-red'}`} title="Audio"></span>
-                          <span className="text-xs text-gray-400">
+                        <div className="participant-meta">
+                          <div className="participant-status">
+                            <span className={`status-dot ${participant.videoEnabled ? 'dot-green' : 'dot-red'}`} title="Video"></span>
+                            <span className={`status-dot ${participant.audioEnabled ? 'dot-green' : 'dot-red'}`} title="Audio"></span>
+                          </div>
+                          <span className="join-time">
                             Joined {new Date(participant.joinedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </span>
                         </div>
@@ -755,14 +744,15 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
                     {isEducatorMode && !participant.isEducator && (
                       <div className="educator-controls">
                         <button 
-                          onClick={() => muteUser(participant.userId)}
+                          onClick={() => muteUser(participant.userId, participant.userName)}
                           className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded"
                           title="Mute participant"
+                          disabled={!participant.audioEnabled}
                         >
-                          Mute
+                          {participant.audioEnabled ? 'Mute' : 'Muted'}
                         </button>
                         <button 
-                          onClick={() => removeUser(participant.userId)}
+                          onClick={() => removeUser(participant.userId, participant.userName)}
                           className="text-xs bg-gray-600 hover:bg-gray-700 text-white px-2 py-1 rounded"
                           title="Remove participant"
                         >
@@ -795,7 +785,7 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
 
           {/* Chat */}
           <div className="sidebar-section chat-section">
-            <h3 className="text-lg font-semibold text-white mb-4">💬 Chat</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">💬 Chat ({messages.length})</h3>
             <div className="chat-messages">
               {messages.length === 0 ? (
                 <p className="empty-state">No messages yet. Start the conversation!</p>
