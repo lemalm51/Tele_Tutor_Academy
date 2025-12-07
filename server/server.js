@@ -1,17 +1,18 @@
-import express from 'express'
-import cors from 'cors'
-import 'dotenv/config'
+// server/server.js
+import express from 'express';
+import cors from 'cors';
+import 'dotenv/config';
 import connectDB from './configs/mongodb.js';
 import connectCloudinary from './configs/cloudinary.js';
 import courseRouter from './routes/courseRoute.js';
 import userRouter from './routes/userRoutes.js';
 import educatorRouter from './routes/educatorRoutes.js';
 import { seedSampleData } from './seedData.js';
-import path from 'path';
 import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = dirname(__filename);
 
 // Initialize express 
 const app = express();
@@ -19,30 +20,75 @@ const app = express();
 // Configure CORS for Vercel
 const allowedOrigins = [
   'https://stema.vercel.app',
+  'https://stema-lms.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000'
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      console.log('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve static files from uploads directory (for local development)
+app.use('/uploads', express.static(join(__dirname, 'uploads')));
 
-// Simple database connection with retry logic
-const startServer = async () => {
+// Test route
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: '🚀 Server of STEMA is working!',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Health check route
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// ROOT ROUTE
+app.get('/', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: '🚀 STEMA LMS Backend API is running!',
+    status: 'active',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    endpoints: {
+      test: 'GET /api/test',
+      health: 'GET /api/health',
+      courses: 'GET /api/course/all',
+      course_by_id: 'GET /api/course/:id',
+      user_data: 'GET /api/user/data (protected)',
+      educator_courses: 'GET /api/educator/courses (protected)'
+    }
+  });
+});
+
+// Database and service connection with error handling
+const startServices = async () => {
   try {
     // Connect to db and cloudinary
     await connectDB();
@@ -53,56 +99,18 @@ const startServer = async () => {
     
     console.log('✅ Database and services connected successfully!');
   } catch (error) {
-    console.error('❌ Failed to connect to database:', error.message);
-    // Don't crash on Vercel - allow server to start with limited functionality
+    console.error('⚠️ Failed to connect to some services:', error.message);
+    // Don't crash - allow server to start with limited functionality
   }
 };
 
-// Initialize server
-startServer();
+// Initialize services
+startServices();
 
-// Test route
-app.get('/api/test', (req, res) => {
-  res.json({ 
-    success: true, 
-    message: 'Server of STEMA is working!',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Health check route
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'healthy',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// ROOT ROUTE
-app.get('/', (req, res) => {
-  res.json({ 
-    success: true, 
-    message: '🚀 Backend API Server is running!',
-    status: 'active',
-    timestamp: new Date().toISOString(),
-    endpoints: {
-      test: 'GET /api/test',
-      health: 'GET /api/health',
-      courses: 'GET /api/course/all',
-      course_by_id: 'GET /api/course/:id',
-      user_data: 'GET /api/user/data (protected)',
-      educator_courses: 'GET /api/educator/courses (protected)'
-    },
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-// Public routes
-app.use('/api/course', courseRouter);
-
-// Mock auth middleware (for development)
+// Mock auth middleware (for Vercel deployment)
 const mockAuth = (req, res, next) => {
   // For Vercel deployment, we'll use a simplified mock auth
+  // In production, you should use Clerk's actual middleware
   req.auth = {
     userId: process.env.USER_ID || 'user_35nUwHrNypikUQof05Wmu5VeGMv',
     fullName: 'Test User',
@@ -113,7 +121,10 @@ const mockAuth = (req, res, next) => {
   next();
 };
 
-// Protected routes
+// Public routes (no auth required)
+app.use('/api/course', courseRouter);
+
+// Protected routes (use mock auth for now)
 app.use('/api/user', mockAuth, userRouter);
 app.use('/api/educator', mockAuth, educatorRouter);
 
@@ -127,21 +138,43 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error('Server Error:', err.message);
+  console.error('❌ Server Error:', err.message);
+  
+  // CORS error
+  if (err.message.includes('CORS')) {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'CORS Error: Request blocked by CORS policy' 
+    });
+  }
+  
+  // General error
   res.status(err.status || 500).json({ 
     success: false, 
-    message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
+    message: process.env.NODE_ENV === 'production' 
+      ? 'Internal server error' 
+      : err.message,
     ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
   });
 });
 
-// Export for Vercel
+// Export the app for Vercel
 export default app;
 
-// Start server locally (won't run on Vercel)
+// Only listen locally when not on Vercel
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`✅ Server running locally on port ${PORT}`);
+  const server = app.listen(PORT, () => {
+    console.log(`✅ Server running locally on http://localhost:${PORT}`);
+    console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM signal received: closing HTTP server');
+    server.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
   });
 }

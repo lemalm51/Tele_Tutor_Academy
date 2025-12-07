@@ -1,52 +1,68 @@
+// server/seedData.js
 import Course from './models/Course.js';
 import User from './models/User.js';
 
 // Make sure this function is exported
 export const seedSampleData = async () => {
     try {
-        console.log('🌱 Seeding sample data...');
-
-        // Create sample educator
-        const educator = await User.findOne({ _id: 'mock_educator_id' });
+        console.log('🌱 Checking for sample data...');
+        
+        // Skip if no database connection
+        if (process.env.MONGODB_URI === undefined) {
+            console.log('⚠️ Skipping seed data - No MongoDB URI');
+            return;
+        }
+        
+        // Check connection state
+        const mongoose = await import('mongoose');
+        if (mongoose.connection.readyState !== 1) {
+            console.log('⚠️ Skipping seed data - Database not connected');
+            return;
+        }
+        
+        // Create sample educator if not exists
+        let educator = await User.findOne({ _id: 'mock_educator_id' });
         if (!educator) {
-            await User.create({
+            educator = await User.create({
                 _id: 'mock_educator_id',
                 name: 'Sample Educator',
                 email: 'educator@example.com',
-                imageUrl: '/default-avatar.png',
+                imageUrl: 'https://via.placeholder.com/150',
                 role: 'educator'
             });
             console.log('✅ Created sample educator');
         }
-
-        // Create sample student
-        const student = await User.findOne({ _id: 'mock_user_id' });
+        
+        // Create sample student if not exists
+        let student = await User.findOne({ _id: 'mock_user_id' });
         if (!student) {
-            await User.create({
+            student = await User.create({
                 _id: 'mock_user_id',
                 name: 'Test Student',
                 email: 'student@example.com',
-                imageUrl: '/default-avatar.png',
+                imageUrl: 'https://via.placeholder.com/150',
                 role: 'student',
-                enrolledCourses: [] // Start with empty enrolled courses
+                enrolledCourses: []
             });
             console.log('✅ Created sample student');
         }
-
+        
         // Check if courses already exist
-        const existingCourses = await Course.find({});
+        const existingCourses = await Course.find({}).limit(1);
         if (existingCourses.length === 0) {
+            console.log('📚 Creating sample courses...');
+            
             // Create sample courses - ALL FREE
             const sampleCourses = [
                 {
                     _id: 'course_1',
                     courseTitle: 'Introduction to Mathematics',
                     courseDescription: 'Learn basic mathematics concepts and problem-solving techniques. Perfect for beginners who want to build a strong foundation in math.',
-                    courseThumbnail: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzRGNDZFNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjIwIj5NYXRoIENvdXJzZTwvdGV4dD48L3N2Zz4=',
-                    coursePrice: 0, // FREE
+                    courseThumbnail: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+                    coursePrice: 0,
                     discount: 0,
                     educator: 'mock_educator_id',
-                    enrolledStudents: ['mock_user_id'], // AUTO-ENROLL THE TEST STUDENT
+                    enrolledStudents: ['mock_user_id'],
                     courseContent: [
                         {
                             chapterId: 'chap_1',
@@ -65,72 +81,28 @@ export const seedSampleData = async () => {
                         }
                     ],
                     isPublished: true
-                },
-                {
-                    _id: 'course_2',
-                    courseTitle: 'Physics Fundamentals',
-                    courseDescription: 'Explore the basic principles of physics and their applications in everyday life.',
-                    courseThumbnail: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzEwQjk4MSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjIwIj5QaHlzaWNzIENvdXJzZTwvdGV4dD48L3N2Zz4=',
-                    coursePrice: 0, // FREE
-                    discount: 0,
-                    educator: 'mock_educator_id',
-                    enrolledStudents: ['mock_user_id'], // AUTO-ENROLL THE TEST STUDENT
-                    courseContent: [],
-                    isPublished: true
-                },
-                {
-                    _id: 'course_3',
-                    courseTitle: 'Chemistry Basics',
-                    courseDescription: 'Understand the fundamental concepts of chemistry and chemical reactions.',
-                    courseThumbnail: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI0Y1OUUwQiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjIwIj5DaGVtaXN0cnkgQ291cnNlPC90ZXh0Pjwvc3ZnPg==',
-                    coursePrice: 0, // FREE
-                    discount: 0,
-                    educator: 'mock_educator_id',
-                    enrolledStudents: ['mock_user_id'], // AUTO-ENROLL THE TEST STUDENT
-                    courseContent: [],
-                    isPublished: true
                 }
             ];
-
+            
             for (const courseData of sampleCourses) {
                 await Course.create(courseData);
-                console.log(`✅ Created FREE course: ${courseData.courseTitle}`);
+                console.log(`✅ Created course: ${courseData.courseTitle}`);
             }
-
-            // Also update the student's enrolled courses
-            if (student) {
-                student.enrolledCourses = sampleCourses.map(course => course._id);
-                await student.save();
-                console.log('✅ Auto-enrolled test student in all courses');
-            }
+            
+            // Update student's enrolled courses
+            student.enrolledCourses = sampleCourses.map(course => course._id);
+            await student.save();
+            console.log('✅ Auto-enrolled test student');
+            
         } else {
-            console.log(`✅ Already have ${existingCourses.length} courses in database`);
-            
-            // Auto-enroll existing test student in existing courses
-            const courses = await Course.find({});
-            const courseIds = courses.map(course => course._id);
-            
-            if (student) {
-                student.enrolledCourses = courseIds;
-                await student.save();
-                console.log(`✅ Auto-enrolled test student in ${courseIds.length} courses`);
-            }
-
-            // Also add student to each course's enrolledStudents
-            for (const course of courses) {
-                if (!course.enrolledStudents.includes('mock_user_id')) {
-                    course.enrolledStudents.push('mock_user_id');
-                    await course.save();
-                    console.log(`✅ Added student to course: ${course.courseTitle}`);
-                }
-            }
+            console.log(`✅ Already have ${await Course.countDocuments()} courses in database`);
         }
-
-        console.log('✅ Sample data seeding completed! All courses are FREE.');
+        
+        console.log('✅ Sample data check completed!');
     } catch (error) {
-        console.error('❌ Error seeding sample data:', error);
+        console.error('⚠️ Error in seed data (non-critical):', error.message);
+        // Don't throw error - this shouldn't prevent server startup
     }
 };
 
-// You can also add a default export if needed
 export default seedSampleData;

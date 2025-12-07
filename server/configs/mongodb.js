@@ -1,3 +1,4 @@
+// server/configs/mongodb.js
 import mongoose from "mongoose";
 
 // Connect to MongoDB database with better error handling
@@ -21,42 +22,31 @@ const connectDB = async () => {
         
         // Connection options
         const options = {
-            serverSelectionTimeoutMS: 5000,
+            serverSelectionTimeoutMS: 10000, // 10 seconds
             socketTimeoutMS: 45000,
             family: 4,
-            maxPoolSize: 10
+            maxPoolSize: 10,
+            retryWrites: true,
+            w: 'majority'
         };
         
-        // Connect with retry logic
-        const maxRetries = 3;
-        let retryCount = 0;
+        // Check if MongoDB URI exists
+        if (!process.env.MONGODB_URI) {
+            console.log('⚠️ MONGODB_URI not found in environment variables');
+            console.log('ℹ️ Server will run without database connection');
+            return;
+        }
         
-        const connectWithRetry = async () => {
-            try {
-                console.log(`🔄 Attempting MongoDB connection (Attempt ${retryCount + 1}/${maxRetries})...`);
-                
-                await mongoose.connect(process.env.MONGODB_URI, options);
-                return true;
-            } catch (error) {
-                retryCount++;
-                console.error(`❌ MongoDB connection attempt ${retryCount} failed:`, error.message);
-                
-                if (retryCount < maxRetries) {
-                    console.log(`⏳ Retrying in 2 seconds...`);
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    return connectWithRetry();
-                } else {
-                    throw error;
-                }
-            }
-        };
+        console.log('🔄 Connecting to MongoDB...');
         
-        await connectWithRetry();
+        await mongoose.connect(process.env.MONGODB_URI, options);
+        
+        console.log('✅ MongoDB connected successfully!');
         
     } catch (error) {
-        console.error('💥 Failed to connect to MongoDB after all retries:', error.message);
-        // Don't throw error to allow server to start
+        console.error('💥 MongoDB connection failed:', error.message);
         console.log('⚠️ Server will run with limited functionality (no database)');
+        // Don't throw error to allow server to start
     }
 }
 
