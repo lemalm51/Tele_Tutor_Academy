@@ -214,10 +214,13 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
   const [raisedHands, setRaisedHands] = useState([]);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  
+  const [remoteStreams, setRemoteStreams] = useState(new Map());
+  const [peerConnections, setPeerConnections] = useState(new Map());
+
   const localVideoRef = useRef(null);
   const socketRef = useRef();
   const screenStreamRef = useRef(null);
+  const remoteVideoRefs = useRef(new Map());
 
   // Show notification
   const showNotification = useCallback((message, type = 'info') => {
@@ -230,7 +233,7 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
     }`;
     notification.textContent = message;
     document.body.appendChild(notification);
-    
+
     // Auto remove after 3 seconds
     setTimeout(() => {
       notification.classList.add('opacity-0', 'transition-opacity', 'duration-300');
@@ -238,37 +241,267 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
     }, 3000);
   }, []);
 
+  // WebRTC configuration
+  const rtcConfiguration = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+  };
+
+  // Create peer connection for a user
+  const createPeerConnection = useCallback((targetUserId, isInitiator = false) => {
+    const peerConnection = new RTCPeerConnection(rtcConfiguration);
+
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        socketRef.current?.emit('ice-candidate', {
+          targetUserId,
+          candidate: event.candidate,
+          roomId
+        });
+      }
+    };
+
+    peerConnection.ontrack = (event) => {
+      console.log('Received remote track from:', targetUserId);
+      setRemoteStreams(prev => {
+        const newStreams = new Map(prev);
+        newStreams.set(targetUserId, event.streams[0]);
+        return newStreams;
+      });
+    };
+
+    peerConnection.onconnectionstatechange = () => {
+      console.log(`Connection state with ${targetUserId}:`, peerConnection.connectionState);
+    };
+
+    // Add local stream tracks to peer connection
+    if (localStream) {
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
+    }
+
+    setPeerConnections(prev => {
+      const newConnections = new Map(prev);
+      newConnections.set(targetUserId, peerConnection);
+      return newConnections;
+    });
+
+    return peerConnection;
+  }, [localStream, roomId]);
+
+  // Handle incoming offers
+  const handleOffer = useCallback(async (data) => {
+    const { offer, fromUserId } = data;
+    console.log('Received offer from:', fromUserId);
+
+    let peerConnection = peerConnections.get(fromUserId);
+    if (!peerConnection) {
+      peerConnection = createPeerConnection(fromUserId, false);
+    }
+
+    try {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+
+      socketRef.current?.emit('answer', {
+        targetUserId: fromUserId,
+        answer,
+        roomId
+      });
+    } catch (error) {
+      console.error('Error handling offer:', error);
+    }
+  }, [peerConnections, createPeerConnection, roomId]);
+
+  // Handle incoming answers
+  const handleAnswer = useCallback(async (data) => {
+    const { answer, fromUserId } = data;
+    console.log('Received answer from:', fromUserId);
+
+    const peerConnection = peerConnections.get(fromUserId);
+    if (peerConnection) {
+      try {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+      } catch (error) {
+        console.error('Error handling answer:', error);
+      }
+    }
+  }, [peerConnections]);
+
+  // Handle ICE candidates
+  const handleIceCandidate = useCallback(async (data) => {
+    const { candidate, fromUserId } = data;
+    const peerConnection = peerConnections.get(fromUserId);
+    if (peerConnection) {
+      try {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (error) {
+        console.error('Error adding ICE candidate:', error);
+      }
+    }
+  }, [peerConnections]);
+
+  // Start WebRTC connection with a user
+  const startWebRTCConnection = useCallback(async (targetUserId) => {
+    if (isEducatorMode) {
+      // Educator initiates connection with student
+      const peerConnection = createPeerConnection(targetUserId, true);
+
+      try {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+
+        socketRef.current?.emit('offer', {
+          targetUserId,
+          offer,
+          roomId
+        });
+      } catch (error) {
+        console.error('Error creating offer:', error);
+      }
+    }
+  }, [isEducatorMode, createPeerConnection, roomId]);
+
   useEffect(() => {
-    // Initialize socket connection
-    const socketInstance = io('http://localhost:3000', {
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      transports: ['websocket', 'polling'],
-      forceNew: true,
-      withCredentials: true
-    });
-    
-    socketRef.current = socketInstance;
-    setSocket(socketInstance);
+    // Initialize socket connection only once per room
+    if (!socketRef.current) {
+      const socketInstance = io('http://localhost:3000', {
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        transports: ['websocket', 'polling'],
+        forceNew: true,
+        withCredentials: true
+      });
 
-    // Socket connection events
-    socketInstance.on('connect', () => {
-      console.log('✅ Connected to server');
-      setConnectionStatus('connected');
-    });
+      socketRef.current = socketInstance;
+      setSocket(socketInstance);
 
-    socketInstance.on('disconnect', () => {
-      console.log('❌ Disconnected from server');
-      setConnectionStatus('disconnected');
-    });
+      // Socket connection events
+      socketInstance.on('connect', () => {
+        console.log('✅ Connected to server');
+        setConnectionStatus('connected');
+      });
 
-    socketInstance.on('connect_error', (error) => {
-      console.error('Connection error:', error);
-      setConnectionStatus('error');
-    });
+      socketInstance.on('disconnect', () => {
+        console.log('❌ Disconnected from server');
+        setConnectionStatus('disconnected');
+      });
 
-    // Get user media
+      socketInstance.on('connect_error', (error) => {
+        console.error('Connection error:', error);
+        setConnectionStatus('error');
+      });
+
+      // WebRTC socket event listeners
+      socketInstance.on('offer', handleOffer);
+      socketInstance.on('answer', handleAnswer);
+      socketInstance.on('ice-candidate', handleIceCandidate);
+
+      // Socket event listeners
+      socketInstance.on('room-update', ({ users }) => {
+        console.log('Room update:', users);
+        setUsers(users);
+
+        // Start WebRTC connections for new users
+        if (isEducatorMode && localStream) {
+          users.forEach(user => {
+            if (!user.isEducator && !peerConnections.has(user.userId)) {
+              startWebRTCConnection(user.userId);
+            }
+          });
+        }
+      });
+
+      socketInstance.on('new-message', (message) => {
+        console.log('New message:', message);
+        setMessages(prev => [...prev, message]);
+
+        // Auto-scroll to latest message
+        setTimeout(() => {
+          const chatMessages = document.querySelector('.chat-messages');
+          if (chatMessages) {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+          }
+        }, 100);
+      });
+
+      socketInstance.on('user-connected', (userData) => {
+        console.log('User connected:', userData);
+        showNotification(`${userData.userName} joined the class!`, 'info');
+
+        // Start WebRTC connection with new user if educator
+        if (isEducatorMode && localStream && !userData.isEducator) {
+          setTimeout(() => startWebRTCConnection(userData.userId), 1000);
+        }
+      });
+
+      socketInstance.on('user-disconnected', (userData) => {
+        console.log('User disconnected:', userData);
+        showNotification(`${userData.userName} left the class.`, 'info');
+
+        // Clean up peer connection
+        const peerConnection = peerConnections.get(userData.userId);
+        if (peerConnection) {
+          peerConnection.close();
+          setPeerConnections(prev => {
+            const newConnections = new Map(prev);
+            newConnections.delete(userData.userId);
+            return newConnections;
+          });
+        }
+
+        // Clean up remote stream
+        setRemoteStreams(prev => {
+          const newStreams = new Map(prev);
+          newStreams.delete(userData.userId);
+          return newStreams;
+        });
+      });
+
+      socketInstance.on('hand-raised', ({ userName, timestamp }) => {
+        console.log('Hand raised:', userName);
+        const newHand = { userName, timestamp: new Date(timestamp) };
+        setRaisedHands(prev => [...prev, newHand]);
+
+        // Remove after 30 seconds
+        setTimeout(() => {
+          setRaisedHands(prev => prev.filter(h => h.userName !== userName));
+        }, 30000);
+
+        showNotification(`✋ ${userName} raised their hand!`, 'warning');
+      });
+
+      socketInstance.on('user-media-updated', ({ userId, type, enabled }) => {
+        console.log(`${userId} ${type}: ${enabled ? 'ON' : 'OFF'}`);
+        setUsers(prev => prev.map(u =>
+          u.userId === userId ? { ...u, [`${type}Enabled`]: enabled } : u
+        ));
+      });
+
+      socketInstance.on('educator-action', ({ action, value }) => {
+        console.log('Educator action:', action, value);
+        if (action === 'mute') {
+          if (localStream) {
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (audioTrack) audioTrack.enabled = false;
+            setIsAudioOn(false);
+          }
+          showNotification('Educator muted your audio', 'warning');
+        } else if (action === 'remove') {
+          showNotification('You have been removed from the class', 'error');
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 2000);
+        }
+      });
+    }
+
+    // Setup media for both educators and students
     const setupMedia = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -283,17 +516,17 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
             autoGainControl: true
           }
         });
-        
+
         setLocalStream(stream);
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
 
         // Join room after getting media
-        socketInstance.emit('join-room', {
+        socketRef.current?.emit('join-room', {
           roomId: roomId,
           userId: user?.id || `user_${Date.now()}`,
-          userName: user?.fullName || 'Anonymous Student',
+          userName: user?.fullName || (isEducatorMode ? 'Anonymous Educator' : 'Anonymous Student'),
           isEducator: isEducatorMode,
           roomName: courseName
         });
@@ -301,92 +534,31 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
       } catch (error) {
         console.error('Error accessing media:', error);
         // Join without media if permissions denied
-        socketInstance.emit('join-room', {
+        socketRef.current?.emit('join-room', {
           roomId: roomId,
           userId: user?.id || `user_${Date.now()}`,
-          userName: user?.fullName || 'Anonymous Student',
+          userName: user?.fullName || (isEducatorMode ? 'Anonymous Educator' : 'Anonymous Student'),
           isEducator: isEducatorMode,
           roomName: courseName
         });
-        
-        showNotification('Camera/microphone access denied. You can still participate in chat.', 'warning');
+
+        if (isEducatorMode) {
+          showNotification('Camera/microphone access denied. You can still monitor and share screen.', 'warning');
+        } else {
+          showNotification('Camera/microphone access denied. You can still participate in chat.', 'warning');
+        }
       }
     };
 
     setupMedia();
 
-    // Socket event listeners
-    socketInstance.on('room-update', ({ users }) => {
-      console.log('Room update:', users);
-      setUsers(users);
-    });
-
-    socketInstance.on('new-message', (message) => {
-      console.log('New message:', message);
-      setMessages(prev => [...prev, message]);
-      
-      // Auto-scroll to latest message
-      setTimeout(() => {
-        const chatMessages = document.querySelector('.chat-messages');
-        if (chatMessages) {
-          chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-      }, 100);
-    });
-
-    socketInstance.on('user-connected', (userData) => {
-      console.log('User connected:', userData);
-      showNotification(`${userData.userName} joined the class!`, 'info');
-    });
-
-    socketInstance.on('user-disconnected', (userData) => {
-      console.log('User disconnected:', userData);
-      showNotification(`${userData.userName} left the class.`, 'info');
-    });
-
-    socketInstance.on('hand-raised', ({ userName, timestamp }) => {
-      console.log('Hand raised:', userName);
-      const newHand = { userName, timestamp: new Date(timestamp) };
-      setRaisedHands(prev => [...prev, newHand]);
-      
-      // Remove after 30 seconds
-      setTimeout(() => {
-        setRaisedHands(prev => prev.filter(h => h.userName !== userName));
-      }, 30000);
-      
-      showNotification(`✋ ${userName} raised their hand!`, 'warning');
-    });
-
-    socketInstance.on('user-media-updated', ({ userId, type, enabled }) => {
-      console.log(`${userId} ${type}: ${enabled ? 'ON' : 'OFF'}`);
-      setUsers(prev => prev.map(u => 
-        u.userId === userId ? { ...u, [`${type}Enabled`]: enabled } : u
-      ));
-    });
-
-    socketInstance.on('educator-action', ({ action, value }) => {
-      console.log('Educator action:', action, value);
-      if (action === 'mute') {
-        if (localStream) {
-          const audioTrack = localStream.getAudioTracks()[0];
-          if (audioTrack) audioTrack.enabled = false;
-          setIsAudioOn(false);
-        }
-        showNotification('Educator muted your audio', 'warning');
-      } else if (action === 'remove') {
-        showNotification('You have been removed from the class', 'error');
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 2000);
-      }
-    });
-
-    // Cleanup
+    // Cleanup function
     return () => {
       console.log('🧹 Cleaning up SimpleVideoConference');
-      if (socketInstance) {
-        socketInstance.emit('leave-room', roomId);
-        socketInstance.disconnect();
+      if (socketRef.current) {
+        socketRef.current.emit('leave-room', roomId);
+        socketRef.current.disconnect();
+        socketRef.current = null;
       }
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
@@ -394,8 +566,11 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
       if (screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach(track => track.stop());
       }
+
+      // Close all peer connections
+      peerConnections.forEach(connection => connection.close());
     };
-  }, [roomId, courseName, isEducatorMode, user?.id, user?.fullName, showNotification]); // FIXED: Added dependencies
+  }, [roomId]); // Only depend on roomId to prevent unnecessary re-runs
 
   // Media Controls
   const toggleVideo = () => {
@@ -610,88 +785,216 @@ const SimpleVideoConference = ({ roomId, courseName, isEducatorMode = false }) =
       <div className="video-main">
         {/* Video Section */}
         <div className="video-section">
-          <div className="video-grid">
-            {/* Local Video */}
-            <div className="video-tile local">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                muted
-                playsInline
-                className="video-element"
-              />
-              <div className="video-label">
-                <div className="flex items-center justify-between">
-                  <span>👤 {user?.fullName || 'You'} {isEducatorMode && '(Educator)'}</span>
-                  <div className="flex gap-1">
-                    {isScreenSharing && <span className="text-xs bg-purple-600 px-2 py-0.5 rounded">🖥️ Sharing</span>}
-                    {!isVideoOn && <span className="text-xs bg-red-600 px-2 py-0.5 rounded">🚫 Camera</span>}
-                    {!isAudioOn && <span className="text-xs bg-red-600 px-2 py-0.5 rounded">🔇 Mic</span>}
+          {isEducatorMode ? (
+            /* Educator Video Interface */
+            <div className="educator-video-interface">
+              {/* Educator's Video Display */}
+              <div className="educator-video-section">
+                <div className="video-tile educator-main">
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="video-element"
+                  />
+                  <div className="video-label">
+                    <div className="flex items-center justify-between">
+                      <span>👨‍🏫 {user?.fullName || 'Educator'}</span>
+                      <div className="flex gap-1">
+                        {isScreenSharing && <span className="text-xs bg-purple-600 px-2 py-0.5 rounded">🖥️ Sharing</span>}
+                        {!isVideoOn && <span className="text-xs bg-red-600 px-2 py-0.5 rounded">🚫 Camera</span>}
+                        {!isAudioOn && <span className="text-xs bg-red-600 px-2 py-0.5 rounded">🔇 Mic</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Educator Controls */}
+              <div className="educator-controls-section">
+                <div className="media-controls educator-media-controls">
+                  <button
+                    onClick={toggleVideo}
+                    className={`control-btn ${isVideoOn ? 'btn-active' : 'btn-muted'}`}
+                    title={isVideoOn ? 'Turn off camera' : 'Turn on camera'}
+                  >
+                    {isVideoOn ? '📹 Camera On' : '🚫 Camera Off'}
+                  </button>
+
+                  <button
+                    onClick={toggleAudio}
+                    className={`control-btn ${isAudioOn ? 'btn-active' : 'btn-muted'}`}
+                    title={isAudioOn ? 'Mute microphone' : 'Unmute microphone'}
+                  >
+                    {isAudioOn ? '🎤 Mic On' : '🔇 Mic Off'}
+                  </button>
+
+                  <button
+                    onClick={toggleScreenShare}
+                    className={`control-btn ${isScreenSharing ? 'btn-muted' : 'btn-share'}`}
+                    title={isScreenSharing ? 'Stop screen sharing' : 'Share your screen'}
+                  >
+                    {isScreenSharing ? '🖥️ Stop Share' : '🖥️ Share Screen'}
+                  </button>
+
+                  <button
+                    onClick={copyRoomLink}
+                    className="control-btn btn-share"
+                    title="Copy room link"
+                  >
+                    📋 Copy Invite Link
+                  </button>
+
+                  <button
+                    onClick={leaveClass}
+                    className="control-btn btn-leave"
+                    title="Leave the class"
+                  >
+                    👁️ Leave Class
+                  </button>
+                </div>
+
+                {/* Class Statistics */}
+                <div className="class-stats">
+                  <div className="stats-grid">
+                    <div className="stat-item">
+                      <span className="stat-value">{users.length}</span>
+                      <span className="stat-label">Participants</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-value">{users.filter(u => u.videoEnabled).length}</span>
+                      <span className="stat-label">Video On</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-value">{users.filter(u => u.audioEnabled).length}</span>
+                      <span className="stat-label">Audio On</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-value">{raisedHands.length}</span>
+                      <span className="stat-label">Raised Hands</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          ) : (
+            /* Student Video Interface */
+            <div className="video-grid">
+              {/* Educator's Video */}
+              {Array.from(remoteStreams.entries()).length > 0 ? (
+                Array.from(remoteStreams.entries()).map(([userId, stream]) => {
+                  const educatorUser = users.find(u => u.userId === userId && u.isEducator);
+                  return (
+                    <div key={userId} className="video-tile educator-remote">
+                      <video
+                        ref={(el) => {
+                          if (el && el.srcObject !== stream) {
+                            el.srcObject = stream;
+                          }
+                        }}
+                        autoPlay
+                        playsInline
+                        className="video-element"
+                      />
+                      <div className="video-label">
+                        <div className="flex items-center justify-between">
+                          <span>👨‍🏫 {educatorUser?.userName || 'Educator'}</span>
+                          <div className="flex gap-1">
+                            {educatorUser?.videoEnabled === false && <span className="text-xs bg-red-600 px-2 py-0.5 rounded">🚫 Camera</span>}
+                            {educatorUser?.audioEnabled === false && <span className="text-xs bg-red-600 px-2 py-0.5 rounded">🔇 Mic</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                /* Educator Video Placeholder */
+                <div className="video-tile educator-placeholder">
+                  <div className="video-placeholder">
+                    <div className="placeholder-icon">👨‍🏫</div>
+                    <p>Waiting for educator...</p>
+                    <small className="mt-2">Room ID: {roomId}</small>
+                    <button
+                      onClick={copyRoomLink}
+                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
+                    >
+                      Copy Invite Link
+                    </button>
+                  </div>
+                </div>
+              )}
 
-            {/* Remote Video Placeholder */}
-            <div className="video-tile remote">
-              <div className="video-placeholder">
-                <div className="placeholder-icon">👥</div>
-                <p>{users.length - 1 > 0 ? `${users.length - 1} other participants` : 'Waiting for others...'}</p>
-                <small className="mt-2">Room ID: {roomId}</small>
-                <button 
-                  onClick={copyRoomLink}
-                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
-                >
-                  Copy Invite Link
-                </button>
+              {/* Local Video */}
+              <div className="video-tile local">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="video-element"
+                />
+                <div className="video-label">
+                  <div className="flex items-center justify-between">
+                    <span>👤 {user?.fullName || 'You'}</span>
+                    <div className="flex gap-1">
+                      {isScreenSharing && <span className="text-xs bg-purple-600 px-2 py-0.5 rounded">🖥️ Sharing</span>}
+                      {!isVideoOn && <span className="text-xs bg-red-600 px-2 py-0.5 rounded">🚫 Camera</span>}
+                      {!isAudioOn && <span className="text-xs bg-red-600 px-2 py-0.5 rounded">🔇 Mic</span>}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Controls */}
-          <div className="media-controls">
-            <button 
-              onClick={toggleVideo} 
-              className={`control-btn ${isVideoOn ? 'btn-active' : 'btn-muted'}`}
-              title={isVideoOn ? 'Turn off camera' : 'Turn on camera'}
-            >
-              {isVideoOn ? '📹 Camera On' : '🚫 Camera Off'}
-            </button>
-            
-            <button 
-              onClick={toggleAudio} 
-              className={`control-btn ${isAudioOn ? 'btn-active' : 'btn-muted'}`}
-              title={isAudioOn ? 'Mute microphone' : 'Unmute microphone'}
-            >
-              {isAudioOn ? '🎤 Mic On' : '🔇 Mic Off'}
-            </button>
-            
-            <button 
-              onClick={toggleScreenShare}
-              className={`control-btn ${isScreenSharing ? 'btn-muted' : 'btn-share'}`}
-              title={isScreenSharing ? 'Stop screen sharing' : 'Share your screen'}
-            >
-              {isScreenSharing ? '🖥️ Stop Share' : '🖥️ Share Screen'}
-            </button>
-            
-            <button 
-              onClick={raiseHand}
-              className="control-btn btn-hand"
-              title="Raise hand to ask question"
-            >
-              ✋ Raise Hand
-            </button>
-            
-            <button 
-              onClick={leaveClass}
-              className="control-btn btn-leave"
-              title="Leave the class"
-            >
-              📞 Leave Class
-            </button>
-          </div>
+          {/* Controls - Only show for students */}
+          {!isEducatorMode && (
+            <div className="media-controls">
+              <button
+                onClick={toggleVideo}
+                className={`control-btn ${isVideoOn ? 'btn-active' : 'btn-muted'}`}
+                title={isVideoOn ? 'Turn off camera' : 'Turn on camera'}
+              >
+                {isVideoOn ? '📹 Camera On' : '🚫 Camera Off'}
+              </button>
 
-          {/* Raised Hands */}
+              <button
+                onClick={toggleAudio}
+                className={`control-btn ${isAudioOn ? 'btn-active' : 'btn-muted'}`}
+                title={isAudioOn ? 'Mute microphone' : 'Unmute microphone'}
+              >
+                {isAudioOn ? '🎤 Mic On' : '🔇 Mic Off'}
+              </button>
+
+              <button
+                onClick={toggleScreenShare}
+                className={`control-btn ${isScreenSharing ? 'btn-muted' : 'btn-share'}`}
+                title={isScreenSharing ? 'Stop screen sharing' : 'Share your screen'}
+              >
+                {isScreenSharing ? '🖥️ Stop Share' : '🖥️ Share Screen'}
+              </button>
+
+              <button
+                onClick={raiseHand}
+                className="control-btn btn-hand"
+                title="Raise hand to ask question"
+              >
+                ✋ Raise Hand
+              </button>
+
+              <button
+                onClick={leaveClass}
+                className="control-btn btn-leave"
+                title="Leave the class"
+              >
+                📞 Leave Class
+              </button>
+            </div>
+          )}
+
+          {/* Raised Hands - Show for both educators and students */}
           {raisedHands.length > 0 && (
             <div className="raised-hands-section">
               <h4 className="font-semibold text-yellow-300 mb-2">✋ Raised Hands ({raisedHands.length})</h4>

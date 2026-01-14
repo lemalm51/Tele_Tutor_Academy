@@ -7,10 +7,10 @@ const userSchema = new mongoose.Schema(
         name: { type: String, required: true },
         email: { type: String, required: true },
         imageUrl: { type: String, required: true },
-        role: { 
-            type: String, 
-            enum: ['student', 'educator'], 
-            default: 'student' 
+        role: {
+            type: String,
+            enum: ['student', 'educator', 'admin'],
+            default: 'student'
         },
         enrolledCourses: [
             {

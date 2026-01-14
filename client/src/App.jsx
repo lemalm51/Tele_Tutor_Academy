@@ -15,6 +15,8 @@ import Navbar from './component/student/Navbar'
 import "quill/dist/quill.snow.css";
 import BecomeEducator from './pages/educator/BecomeEducator'
 import VideoClass from './pages/student/VideoClass';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import UserManagement from './pages/admin/UserManagement';
 
 const App = () => {
   const isEducatorRoute=useMatch('/educator/*')
@@ -36,11 +38,14 @@ const App = () => {
         <Route path='/video-class/:courseId' element={<VideoClass />} />
         
         <Route path='/educator' element={ <Educator />} >
-            <Route path='educator' element={<Dashboard />} />
+            <Route index element={<Dashboard />} />
             <Route path='add-course' element={<AddCourse />} />
             <Route path='my-courses' element={<MyCourses />} />
             <Route path='student-enrolled' element={<StudentsEnrolled />} />
         </Route>
+
+        <Route path='/admin' element={<AdminDashboard />} />
+        <Route path='/admin/users' element={<UserManagement />} />
 
       </Routes>
     </div>

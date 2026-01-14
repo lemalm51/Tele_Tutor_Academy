@@ -6,7 +6,7 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'; // <-- New import
 export default defineConfig({
   plugins: [
     react(),
-    
+
     // <-- New plugin added to mock Node.js modules for the browser
     nodePolyfills({
       // The 'os' module is the one causing the warning
@@ -14,9 +14,18 @@ export default defineConfig({
       // The core modules used by Node.js, often needed for full compatibility
       globals: true,
       // Provide compatibility in the dev server (recommended)
-      protocolImports: true, 
+      protocolImports: true,
 
-      
+
     })
   ],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
 })

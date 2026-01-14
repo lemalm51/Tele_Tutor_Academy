@@ -7,15 +7,16 @@ export const seedSampleData = async () => {
     try {
         console.log('🌱 Checking for sample data...');
         
-        // Skip if no database connection
+        // Skip if no database connection string configured
         if (process.env.MONGODB_URI === undefined) {
             console.log('⚠️ Skipping seed data - No MongoDB URI');
             return;
         }
-        
-        // Check connection state
-        const mongoose = await import('mongoose');
-        if (mongoose.connection.readyState !== 1) {
+
+        // Check connection state (handle ESM import shape)
+        const mongooseModule = await import('mongoose');
+        const mongoose = mongooseModule && (mongooseModule.default || mongooseModule);
+        if (!mongoose || !mongoose.connection || mongoose.connection.readyState !== 1) {
             console.log('⚠️ Skipping seed data - Database not connected');
             return;
         }
@@ -45,6 +46,21 @@ export const seedSampleData = async () => {
                 enrolledCourses: []
             });
             console.log('✅ Created sample student');
+        }
+
+        // Ensure default mock auth user exists so mockAuth works in dev
+        const defaultMockId = process.env.USER_ID || 'user_35nUwHrNypikUQof05Wmu5VeGMv';
+        let defaultUser = await User.findOne({ _id: defaultMockId });
+        if (!defaultUser) {
+            defaultUser = await User.create({
+                _id: defaultMockId,
+                name: 'Dev Mock User',
+                email: 'devmock@example.com',
+                imageUrl: 'https://via.placeholder.com/150',
+                role: 'student',
+                enrolledCourses: []
+            });
+            console.log('✅ Created default mock auth user:', defaultMockId);
         }
         
         // Check if courses already exist

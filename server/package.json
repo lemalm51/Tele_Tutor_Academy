@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "STEMA LMS Backend API",
   "type": "module",
-  "main": "server/server.js",
+  "main": "server.js",
   "scripts": {
-    "dev": "nodemon server/server.js",
-    "start": "node server/server.js",
+    "dev": "nodemon server.js",
+    "start": "node server.js",
     "server": "node server/server.js",
     "vercel-build": "npm install",
     "build": "echo 'No build required for Node.js API'",

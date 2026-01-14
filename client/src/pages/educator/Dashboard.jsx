@@ -87,26 +87,11 @@ const Dashboard = () => {
       setError(errorMessage);
       toast.error(errorMessage);
 
-      // Set fallback data for development
+      // Set fallback data for development - no dummy students
       console.log("🔄 Setting fallback data for development");
       setDashboardData({
-        totalCourses: 3,
-        enrolledStudentsData: [
-          {
-            student: {
-              name: "Test Student 1",
-              imageUrl: assets.profile_img
-            },
-            courseTitle: "Introduction to Mathematics"
-          },
-          {
-            student: {
-              name: "Test Student 2", 
-              imageUrl: assets.profile_img
-            },
-            courseTitle: "Physics Fundamentals"
-          }
-        ],
+        totalCourses: 0,
+        enrolledStudentsData: [],
         totalEarnings: 0
       });
     } finally {
@@ -229,13 +214,12 @@ const Dashboard = () => {
         {/* Debug Info Box - Always show in development */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h3 className="font-bold text-blue-800 mb-2">Dashboard Debug Info</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
             <div>Total Courses: <strong>{dashboardData.totalCourses || 0}</strong></div>
             <div>Total Enrollments: <strong>{dashboardData.enrolledStudentsData?.length || 0}</strong></div>
-            <div>Total Earnings: <strong>{currency}{dashboardData.totalEarnings || 0}</strong></div>
             <div>Data Type: <strong>{typeof dashboardData}</strong></div>
           </div>
-          <button 
+          <button
             onClick={fetchDashboardData}
             className="mt-2 text-xs bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded"
           >
@@ -244,7 +228,7 @@ const Dashboard = () => {
         </div>
         
         {/* Dashboard Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 items-center w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-center w-full">
           {/* Total Enrollments Card */}
           <div className="flex items-center gap-3 shadow-lg border border-blue-200 p-4 w-full rounded-lg bg-white">
             <img src={assets.patients_icon} alt="enrollments" className="w-12 h-12" />
@@ -264,17 +248,6 @@ const Dashboard = () => {
                 {dashboardData.totalCourses || 0}
               </p>
               <p className="text-base text-gray-600">Total Courses</p>
-            </div>
-          </div>
-
-          {/* Earnings Card */}
-          <div className="flex items-center gap-3 shadow-lg border border-blue-200 p-4 w-full rounded-lg bg-white">
-            <img src={assets.earning_icon} alt="earnings" className="w-12 h-12" />
-            <div>
-              <p className="text-2xl font-bold text-gray-800 whitespace-nowrap">
-                {currency}{dashboardData.totalEarnings || 0}
-              </p>
-              <p className="text-base text-gray-600">Total Earnings</p>
             </div>
           </div>
         </div>

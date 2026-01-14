@@ -1,14 +1,14 @@
 import Course from "../models/Course.js"
 import User from "../models/User.js"
 import { CourseProgress } from "../models/CourseProgress.js"
-
+import { Enrollment } from "../models/Enrollment.js"
 // Get users data
 export const getUserData = async(req,res)=>{
     try {
         const userId = req.auth.userId
         const user = await User.findById(userId)
         if(!user){
-            res.json({success: false, message:"User not found!"})
+            return res.json({success: false, message:"User not found!"})
         }
 
         res.json({success: true, user});
@@ -31,33 +31,107 @@ export const userEnrolledCourses = async (req,res)=>{
     }
 }
 
-// Purchase course - FREE ENROLLMENT
-export const purchaseCourse = async (req, res) => {
+// Enroll course - FREE ENROLLMENT
+export const enrollCourse = async (req, res) => {
     try {
         const { courseId } = req.body;
         const userId = req.auth.userId;
 
-        const userData = await User.findById(userId);
-        const courseData = await Course.findById(courseId);
-        
-        if (!userData || !courseData) {
-            return res.json({ success: false, message: "Data Not Found" });
+        // Log request
+        console.log(`ENROLL endpoint called - userId: ${userId}, courseId: ${courseId}`);
+
+        // Quick DB check: if already enrolled, return 409
+        try {
+            const already = await User.findOne({ _id: userId, enrolledCourses: courseId }).lean();
+            if (already) {
+                console.log(`ENROLL: user ${userId} already enrolled in ${courseId}`);
+                return res.status(409).json({ success: false, message: 'Already enrolled in this course' });
+            }
+        } catch (dbCheckErr) {
+            console.warn('ENROLL: DB pre-check failed:', dbCheckErr.message);
+            // continue to attempt enroll
         }
 
-        // Check if already enrolled
-        if (userData.enrolledCourses.includes(courseId)) {
-            return res.json({ success: false, message: "Already enrolled in this course" });
+        let userData = await User.findById(userId);
+        let courseData = await Course.findById(courseId);
+
+        // If user doesn't exist in DB (dev), create a minimal user record
+        if (!userData) {
+            userData = await User.create({
+                _id: userId,
+                name: req.auth.fullName || 'Auto Created User',
+                email: req.auth.primaryEmailAddress?.emailAddress || `${userId}@example.com`,
+                imageUrl: req.auth.imageUrl || '/default-avatar.png',
+                role: 'student',
+                enrolledCourses: []
+            });
         }
 
-        // Free enrollment - just add to user's courses
-        userData.enrolledCourses.push(courseId);
-        await userData.save();
+        // If course doesn't exist in DB (dev), create a minimal course so enrollment can proceed
+        if (!courseData) {
+            courseData = await Course.create({
+                _id: courseId,
+                courseTitle: 'Imported Course',
+                courseDescription: 'Auto-created course for dev enroll',
+                courseThumbnail: '',
+                coursePrice: 0,
+                discount: 0,
+                educator: userId,
+                enrolledStudents: [],
+                courseContent: [],
+                isPublished: true
+            });
+        }
 
-        // Add user to course's enrolled students
-        courseData.enrolledStudents.push(userId);
-        await courseData.save();
+        // Use atomic operations to avoid race conditions and duplicates
+        const userUpdate = await User.updateOne(
+            { _id: userId },
+            { $addToSet: { enrolledCourses: courseId } }
+        );
 
-        res.json({ success: true, message: "Successfully enrolled in course!" });
+        const courseUpdate = await Course.updateOne(
+            { _id: courseId },
+            { $addToSet: { enrolledStudents: userId } }
+        );
+
+        console.log('ENROLL: userUpdate result:', JSON.stringify(userUpdate));
+        console.log('ENROLL: courseUpdate result:', JSON.stringify(courseUpdate));
+
+        // If neither update modified anything, user was already enrolled
+        const userModified = userUpdate.modifiedCount && userUpdate.modifiedCount > 0;
+        const courseModified = courseUpdate.modifiedCount && courseUpdate.modifiedCount > 0;
+
+        if (!userModified && !courseModified) {
+            console.log(`ENROLL: user ${userId} already enrolled in ${courseId}`);
+            return res.status(409).json({ success: false, message: "Already enrolled in this course" });
+        }
+
+        // Create enrollment record if user was modified
+        try {
+            let createdEnrollment = null;
+            if (userModified) {
+                createdEnrollment = await Enrollment.create({ courseId, userId, status: 'enrolled' });
+                console.log('ENROLL: created Enrollment id:', createdEnrollment?._id);
+            }
+            console.log(`ENROLL: user ${userId} successfully enrolled in ${courseId}`);
+
+            // Fetch updated user to return to client for immediate UI update
+            try {
+                const updatedUser = await User.findById(userId).lean();
+                return res.status(201).json({
+                    success: true,
+                    message: "Successfully enrolled in course!",
+                    enrollmentId: createdEnrollment?._id || null,
+                    user: updatedUser
+                });
+            } catch (e) {
+                console.warn('ENROLL: failed to fetch updated user for response:', e.message);
+                return res.status(201).json({ success: true, message: "Successfully enrolled in course!", enrollmentId: createdEnrollment?._id || null });
+            }
+        } catch (e) {
+            console.error('ENROLL: error creating enrollment record:', e);
+            return res.status(500).json({ success: false, message: 'Enrollment failed', error: e.message });
+        }
 
     } catch (error) {
         res.json({ success: false, message: error.message });

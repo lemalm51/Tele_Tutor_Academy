@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AppContext } from "../../context/AppContext";
 import Loading from "../../component/student/Loading";
@@ -14,7 +14,6 @@ const CourseDetails = () => {
 
     const [courseData, setCourseData] = useState(null);
     const [openSections, setOpenSections] = useState({});
-    const [isAlreadyEnrolled, setIsAlreadyEnrolled] = useState(false);
     const [playerData, setPlayerData] = useState(null);
 
     const {
@@ -24,82 +23,206 @@ const CourseDetails = () => {
         calculateNoOfLectures,
         backendUrl,
         userData,
+        setUserData,
         getToken,
+        fetchUserData,
+        fetchUserEnrolledCourses,
+        enrolledCourses,
     } = useContext(AppContext);
+    const [enrolling, setEnrolling] = useState(false);
+    const [enrollingFlag, setEnrollingFlag] = useState(false);
+    const [hasEnrolled, setHasEnrolled] = useState(false);
 
     const fetchCourseData = async () => {
-        // First try to find in local courses
+        // First try to find in local courses (for demo courses)
         const findCourse = allCourses.find((course) => course._id === id);
         if (findCourse) {
             setCourseData(findCourse);
             return;
         }
 
-        // If backend is down, use first course as fallback
-        if (allCourses.length > 0) {
-            setCourseData(allCourses[0]);
-            return;
-        }
-
-        // If not found, try to fetch from API
+        // For educator-created courses, always try to fetch from API first
         try {
+            console.log('Fetching course from API:', id);
             const { data } = await axios.get(backendUrl + "/api/course/" + id);
             if (data.success) {
+                console.log('Course fetched successfully:', data.courseData);
                 setCourseData(data.courseData);
             } else {
-                toast.error(data.message);
+                console.error('API returned error:', data.message);
+                toast.error(data.message || 'Failed to load course');
             }
         } catch (error) {
-            console.error("Error fetching course, using fallback:", error);
-            // Use first available course as fallback
-            if (allCourses.length > 0) {
-                setCourseData(allCourses[0]);
+            console.error("Error fetching course from API:", error);
+            // Only use fallback if we have demo courses and this might be a demo course
+            if (allCourses.length > 0 && id.startsWith('course_')) {
+                console.log('Using demo course fallback for:', id);
+                const fallbackCourse = allCourses.find(c => c._id === id) || allCourses[0];
+                setCourseData(fallbackCourse);
             } else {
-                toast.error("Failed to load course details");
+                toast.error("Failed to load course details. Please check your connection.");
             }
-        }
-    };
-
-    const enrollCourse = async () => {
-        try {
-            if (!userData) {
-                return toast.warn("Login to Enroll!");
-            }
-            if (isAlreadyEnrolled) {
-                return toast.warn("Already Enrolled");
-            }
-
-            const token = await getToken();
-            const { data } = await axios.post(
-                backendUrl + "/api/user/purchase",
-                { courseId: courseData._id },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-
-            if (data.success) {
-                toast.success("Successfully enrolled in the course!");
-                setIsAlreadyEnrolled(true);
-            } else {
-                toast.error(data.message);
-            }
-        } catch (error) {
-            toast.error(error.message);
         }
     };
 
     useEffect(() => {
+        // Fetch course data when component mounts or when id/allCourses change
         fetchCourseData();
+        // Reset hasEnrolled when course changes
+        setHasEnrolled(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id, allCourses]);
 
-    useEffect(() => {
-        if (userData && courseData) {
-            setIsAlreadyEnrolled(userData.enrolledCourses.includes(courseData._id));
+    const enrollCourse = useCallback(async () => {
+        console.log('Enroll button clicked');
+        console.log('enrollingFlag:', enrollingFlag);
+        console.log('courseData:', courseData);
+        console.log('userData:', userData);
+
+        if (enrollingFlag) {
+            console.log('Already enrolling, returning');
+            return;
         }
-    }, [userData, courseData]);
+        if (!courseData?._id) {
+            console.log('Course not ready');
+            return toast.error('Course not ready');
+        }
+        if (!userData) {
+            console.log('User not logged in');
+            return toast.warn("Login to Enroll!");
+        }
+
+        setEnrollingFlag(true);
+        setEnrolling(true);
+
+        try {
+            const token = await getToken().catch((e) => {
+                console.warn('getToken failed:', e && e.message);
+                return null;
+            });
+
+            console.log('Token retrieved:', token ? 'YES' : 'NO');
+
+            const headers = {};
+            if (token) headers.Authorization = `Bearer ${token}`;
+
+            console.log('Enroll: sending request for course', courseData._id);
+            console.log('Request headers:', headers);
+
+            const response = await axios.post(
+                backendUrl + "/api/user/enroll",
+                { courseId: courseData._id },
+                { headers, validateStatus: () => true }
+            );
+
+            console.log('Enroll: response status', response.status, 'data', response.data);
+
+            const data = response.data;
+            if (response.status === 201 && data && data.success) {
+                toast.success("Successfully enrolled in the course!");
+                setHasEnrolled(true);
+                // Optimistically update UI state: userData and courseData
+                try {
+                    // If server returned an authoritative user object, use it
+                    if (data.user && setUserData) {
+                        console.log('Updating userData with server response:', data.user);
+                        setUserData(data.user);
+                    } else if (setUserData) {
+                        setUserData((prev) => {
+                            try {
+                                const prevEnroll = Array.isArray(prev?.enrolledCourses) ? prev.enrolledCourses : [];
+                                // avoid duplicates
+                                const enrollSet = new Set(prevEnroll.map(String));
+                                enrollSet.add(String(courseData._id));
+                                const newEnrolledCourses = Array.from(enrollSet);
+                                console.log('Updating userData enrolledCourses:', newEnrolledCourses);
+                                return { ...prev, enrolledCourses: newEnrolledCourses };
+                            } catch (e) {
+                                console.error('Error updating userData:', e);
+                                return prev;
+                            }
+                        });
+                    }
+
+                    // update courseData enrolledStudents count locally
+                    setCourseData((prev) => {
+                        if (!prev) return prev;
+                        const students = Array.isArray(prev.enrolledStudents) ? [...prev.enrolledStudents] : [];
+                        const currentUserId = (data.user && data.user._id) || userData?._id || 'local_user';
+                        if (!students.map(String).includes(String(currentUserId))) {
+                            students.push(currentUserId);
+                            console.log('Updated courseData enrolledStudents count:', students.length);
+                        }
+                        return { ...prev, enrolledStudents: students };
+                    });
+
+                    // If server did not return user, attempt to refresh in background
+                    if (!data.user && typeof fetchUserData === 'function') {
+                        try {
+                            await fetchUserData();
+                        } catch (e) {
+                            console.warn('fetchUserData failed after enroll:', e?.message || e);
+                        }
+                    }
+
+                    // Refresh enrolled courses list to update context state
+                    if (typeof fetchUserEnrolledCourses === 'function') {
+                        try {
+                            await fetchUserEnrolledCourses();
+                        } catch (e) {
+                            console.warn('fetchUserEnrolledCourses failed after enroll:', e?.message || e);
+                        }
+                    }
+
+                    // Auto-play the first lecture after enrollment
+                    if (courseData?.courseContent?.[0]?.chapterContent?.[0]?.lectureUrl) {
+                        setPlayerData({
+                            videoId: getYouTubeId(courseData.courseContent[0].chapterContent[0].lectureUrl),
+                        });
+                    }
+                } catch (e) {
+                    console.warn('Optimistic UI update failed:', e);
+                }
+            } else if (response.status === 409) {
+                toast.info(data?.message || 'Already enrolled');
+            } else {
+                toast.error(data?.message || 'Failed to enroll');
+            }
+        } catch (error) {
+            console.error('Enroll request failed:', error);
+            toast.error('Failed to contact server');
+        } finally {
+            setEnrollingFlag(false);
+            setEnrolling(false);
+        }
+    }, [courseData, userData, backendUrl, getToken, setUserData, fetchUserData, fetchUserEnrolledCourses]);
+
+    // Helper to extract YouTube ID from common URL formats
+    const getYouTubeId = (url) => {
+        if (!url || typeof url !== 'string') return null;
+        try {
+            // youtu.be short links
+            if (url.includes('youtu.be/')) return url.split('youtu.be/').pop().split(/[?&]/)[0];
+            // standard watch?v=ID
+            const vMatch = url.match(/[?&]v=([^&]+)/);
+            if (vMatch && vMatch[1]) return vMatch[1];
+            // embed urls
+            const embedMatch = url.match(/\/embed\/([^?&/]+)/);
+            if (embedMatch && embedMatch[1]) return embedMatch[1];
+            // fallback to last path segment
+            return url.split('/').pop().split(/[?&]/)[0];
+        } catch (e) {
+            return null;
+        }
+    }
 
     const toggleSection = (index) => {
         setOpenSections((prev) => ({ ...prev, [index]: !prev[index] }));
     };
+
+    const isAlreadyEnrolled = hasEnrolled ||
+                              (userData && Array.isArray(userData.enrolledCourses) && userData.enrolledCourses.some((c) => String(c) === String(courseData._id))) ||
+                              (Array.isArray(enrolledCourses) && enrolledCourses.some((c) => String(c._id) === String(courseData._id)));
 
     return courseData ? (
         <>
@@ -172,7 +295,7 @@ const CourseDetails = () => {
                                                         <img
                                                             onClick={() =>
                                                                 setPlayerData({
-                                                                    videoId: lecture.lectureUrl?.split("/").pop(),
+                                                                    videoId: getYouTubeId(lecture.lectureUrl),
                                                                 })
                                                             }
                                                             className="w-4 h-4 mt-1 cursor-pointer"
@@ -186,9 +309,7 @@ const CourseDetails = () => {
                                                                     <p
                                                                         onClick={() =>
                                                                             setPlayerData({
-                                                                                videoId: lecture.lectureUrl
-                                                                                    ?.split("/")
-                                                                                    .pop(),
+                                                                                videoId: getYouTubeId(lecture.lectureUrl),
                                                                             })
                                                                         }
                                                                         className="text-blue-500 cursor-pointer"
@@ -213,18 +334,6 @@ const CourseDetails = () => {
                             ))}
                         </div>
                     </div>
-
-                    <div className="py-20 text-sm md:text-default">
-                        <h3 className="text-xl font-semibold text-gray-800 ">
-                            Course Description
-                        </h3>
-                        <p
-                            className="pt-3 rich-text"
-                            dangerouslySetInnerHTML={{
-                                __html: courseData.courseDescription || "No description available.",
-                            }}
-                        ></p>
-                    </div>
                 </div>
 
                 {/* right column */}
@@ -232,7 +341,7 @@ const CourseDetails = () => {
                     {playerData ? (
                         <YouTube
                             videoId={playerData.videoId}
-                            opts={{ playerVars: { autoplay: 1 } }}
+                            opts={{ playerVars: { autoplay: 0 } }}
                             iframeClassName="w-full aspect-video"
                         />
                     ) : (
@@ -250,7 +359,7 @@ const CourseDetails = () => {
 
                     <div className="p-5">
                         <div className="flex gap-3 items-center pt-2">
-                            <p className="text-gray-800 md:text-3xl text-2xl font-semibold text-green-600">
+                            <p className="md:text-3xl text-2xl font-semibold text-green-600">
                                 Free
                             </p>
                         </div>
@@ -277,16 +386,17 @@ const CourseDetails = () => {
                         </div>
 
                         <div className="mt-6 space-y-4">
-                            {isAlreadyEnrolled ? (
+                            {(isAlreadyEnrolled || hasEnrolled) ? (
                                 <p className="w-full py-3 rounded text-center bg-green-600 text-white font-medium">
                                     Already Enrolled
                                 </p>
                             ) : (
                                 <button
                                     onClick={enrollCourse}
-                                    className="w-full py-3 rounded text-center bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
+                                    disabled={enrolling}
+                                    className={`w-full py-3 rounded text-center text-white font-medium transition-colors ${enrolling ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
                                 >
-                                    Enroll for Free
+                                    {enrolling ? 'Enrolling...' : 'Enroll for Free'}
                                 </button>
                             )}
 
@@ -309,17 +419,6 @@ const CourseDetails = () => {
                                 </div>
                             )}
                         </div>
-
-                        {isAlreadyEnrolled && (
-                            <div className="mt-4">
-                                <Link
-                                    to="/my-enrollments"
-                                    className="block w-full text-center py-2 rounded bg-gray-100 text-gray-800 font-medium hover:bg-gray-200"
-                                >
-                                    Go to My Enrollments
-                                </Link>
-                            </div>
-                        )}
 
                         <div className="pt-6">
                             <p className="md:text-xl text-lg font-medium text-gray-800">

@@ -179,17 +179,23 @@ const BecomeEducator = () => {
             <p className="text-blue-600 mb-6 text-lg">
               Join our community of educators making STEM education accessible in Asella
             </p>
-            
-            
-            <div className="mt-6 p-4 bg-yellow-100 rounded text-xs text-yellow-800 text-left font-mono">
-             
-              <div className="mt-2 whitespace-pre-wrap">
-                Educator Name: {user ? user.fullName : 'Not logged in'}<br />
-                
-                <br />
+
+            <button
+              onClick={handleBecomeEducator}
+              disabled={loading}
+              className="bg-green-600 text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+            >
+              {loading ? 'Becoming Educator...' : '🚀 Become a STEM Educator Now'}
+            </button>
+
+            {debugInfo && (
+              <div className="mt-6 p-4 bg-green-100 rounded text-sm text-green-800 text-left">
+                <div className="whitespace-pre-wrap">
+                  Educator Name: {user ? user.fullName : 'Not logged in'}
+                  {debugInfo.includes('Success') && <br />}{debugInfo.includes('Success') ? 'You can publish courses now!' : ''}
+                </div>
               </div>
-              
-            </div>
+            )}
           </div>
 
           {/* Quick Access Buttons */}

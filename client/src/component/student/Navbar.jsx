@@ -8,9 +8,10 @@ import { AppContext } from "../../context/AppContext";
 const Navbar = () => {
 
     const {navigate ,setIsEducator}=useContext(AppContext)
+    const location = useLocation();
 
 	const isCourseListPage = location.pathname.includes("/course-list");
-	
+
 const { openSignIn } = useClerk();
 	const { user } = useUser();
 
@@ -32,6 +33,8 @@ const { openSignIn } = useClerk();
 
                         <button onClick={()=>{navigate('/educator')}}>{setIsEducator ? 'Educator Dashboard' :'Become Educator'}</button>
 
+                        <Link to="/admin">Admin Dashboard</Link>
+
                      <Link to="/my-enrollments">My Enrollments</Link>
                      </>
                      }
@@ -52,8 +55,11 @@ const { openSignIn } = useClerk();
                <div className="flex items-center gap-1 sm:gap-2 max-sm:text-xs">
                     {
                         user && <>
-                       
+
                         <button onClick={()=>{navigate('/educator')}}>{setIsEducator ? 'Educator Dashboard' :'Become Educator'}</button>
+
+                        <Link to="/admin">Admin</Link>
+
                      <Link to="/my-enrollments">My Enrollments</Link>
                      </>
                      }

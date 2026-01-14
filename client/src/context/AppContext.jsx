@@ -228,6 +228,7 @@ export const AppContextProvider = (props)=>{
         backendUrl, 
         userData, 
         setUserData, 
+        fetchUserData,
         getToken, 
         fetchAllCourses,
         loading,

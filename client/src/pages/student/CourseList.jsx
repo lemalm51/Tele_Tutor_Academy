@@ -5,6 +5,7 @@ import { data, useParams } from "react-router-dom";
 import CourseCard from "../../component/student/CourseCard";
 import { assets } from "../../assets/assets";
 import Footer from "../../component/student/Footer";
+ 
 
 const CoursesList = () => {
 	const { navigate, allCourses } = useContext(AppContext);
