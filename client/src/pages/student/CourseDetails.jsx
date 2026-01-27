@@ -66,10 +66,14 @@ const CourseDetails = () => {
     };
 
     useEffect(() => {
+        // Reset state when course ID changes
+        setCourseData(null);
+        setOpenSections({});
+        setPlayerData(null);
+        setHasEnrolled(false);
+
         // Fetch course data when component mounts or when id/allCourses change
         fetchCourseData();
-        // Reset hasEnrolled when course changes
-        setHasEnrolled(false);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id, allCourses]);
 
@@ -305,18 +309,6 @@ const CourseDetails = () => {
                                                         <div className="flex items-center justify-between w-full text-gray-800 text-xs md:text-default">
                                                             <p>{lecture.lectureTitle}</p>
                                                             <div className="flex gap-2">
-                                                                {lecture.isPreviewFree && (
-                                                                    <p
-                                                                        onClick={() =>
-                                                                            setPlayerData({
-                                                                                videoId: getYouTubeId(lecture.lectureUrl),
-                                                                            })
-                                                                        }
-                                                                        className="text-blue-500 cursor-pointer"
-                                                                    >
-                                                                        Preview
-                                                                    </p>
-                                                                )}
                                                                 <p>
                                                                     {humanizeDuration(
                                                                         lecture.lectureDuration * 60 * 1000,
@@ -346,24 +338,15 @@ const CourseDetails = () => {
                         />
                     ) : (
                         <div className="relative">
-                            <img 
-                                src={courseData.courseThumbnail || "https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"} 
-                                alt="courseThumbnail" 
+                            <img
+                                src={courseData.courseThumbnail || "https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80"}
+                                alt="courseThumbnail"
                                 className="w-full h-48 object-cover"
                             />
-                            <span className="absolute top-2 right-2 bg-green-500 text-white px-3 py-1 rounded text-sm font-medium">
-                                FREE COURSE
-                            </span>
                         </div>
                     )}
 
                     <div className="p-5">
-                        <div className="flex gap-3 items-center pt-2">
-                            <p className="md:text-3xl text-2xl font-semibold text-green-600">
-                                Free
-                            </p>
-                        </div>
-
                         <div className="flex items-center text-sm md:text-default gap-4 pt-2 md:pt-4 text-gray-500">
                             <div className="flex items-center gap-1">
                                 <img src={assets.person_tick_icon} alt="students" className='w-4 h-4' />
@@ -396,7 +379,7 @@ const CourseDetails = () => {
                                     disabled={enrolling}
                                     className={`w-full py-3 rounded text-center text-white font-medium transition-colors ${enrolling ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
                                 >
-                                    {enrolling ? 'Enrolling...' : 'Enroll for Free'}
+                                    {enrolling ? 'Enrolling...' : 'Enroll Now'}
                                 </button>
                             )}
 
@@ -425,7 +408,7 @@ const CourseDetails = () => {
                                 What's in the course?{" "}
                             </p>
                             <ul className="ml-4 pt-2 text-sm md:text-default list-disc text-gray-500 space-y-1">
-                                <li>Lifetime access with free updates</li>
+                                <li>Lifetime access with updates</li>
                                 <li>Step-by-step, hands-on project guidance</li>
                                 <li>Downloadable resources and source code</li>
                                 <li>Quizzes to test your knowledge</li>

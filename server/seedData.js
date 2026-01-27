@@ -68,7 +68,7 @@ export const seedSampleData = async () => {
         if (existingCourses.length === 0) {
             console.log('📚 Creating sample courses...');
             
-            // Create sample courses - ALL FREE
+            // Create sample courses - ALL COURSES
             const sampleCourses = [
                 {
                     _id: 'course_1',
@@ -90,7 +90,7 @@ export const seedSampleData = async () => {
                                     lectureTitle: 'Introduction to Numbers',
                                     lectureDuration: 30,
                                     lectureUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-                                    isPreviewFree: true,
+                                    isPreviewAvailable: true,
                                     lectureOrder: 1
                                 }
                             ]
