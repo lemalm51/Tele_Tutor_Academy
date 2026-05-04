@@ -66,7 +66,14 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <button
+              onClick={() => navigate('/admin/users')}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Manage Users
+            </button>
+
+      {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="space-y-3">
@@ -91,15 +98,8 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-          <div className="space-y-3">
-            <div className="text-sm text-gray-600">
-              <p>No recent activity to display</p>
-            </div>
-          </div>
-        </div>
-      </div>
+        -
+      </div> */}
     </div>
   );
 };
